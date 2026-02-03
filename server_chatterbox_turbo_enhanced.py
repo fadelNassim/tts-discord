@@ -264,14 +264,12 @@ app = FastAPI(title="Qwen3-TTS", version="1.0")
 class TTSRequest(BaseModel):
     text: str
     voice: str
-    language: str = Field("Auto")
+    language: str = Field(default="Auto")
     # Qwen3-TTS parameters
     temperature: float = Field(1.7, ge=0.05, le=5.0)
-    min_p: float = Field(0.1, ge=0.0, le=1.0)
     top_p: float = Field(0.9, ge=0.0, le=1.0)
     top_k: int = Field(50, ge=1, le=100)
     repetition_penalty: float = Field(1.0, ge=0.5, le=2.0)
-    norm_loudness: bool = Field(True)
 
 # =======================
 # TEXT CLEANING
@@ -389,7 +387,7 @@ def api_tts_endpoint(req: TTSRequest):
             repetition_penalty=req.repetition_penalty
         )
 
-        if not wavs:
+        if not wavs or len(wavs) == 0:
             raise RuntimeError("No audio returned from Qwen3-TTS")
 
         # Save the generated audio
@@ -485,11 +483,9 @@ def model_info():
         },
         "parameters": {
             "temperature": "0.05-5.0 (default: 1.7)",
-            "min_p": "0.0-1.0 (default: 0.1)",
             "top_p": "0.0-1.0 (default: 0.9)",
             "top_k": "1-100 (default: 50)",
             "repetition_penalty": "0.5-2.0 (default: 1.0)",
-            "norm_loudness": "bool (default: True)",
             "language": "Auto or supported language"
         },
         "supported_languages": SUPPORTED_LANGUAGES or [

@@ -79,11 +79,9 @@ Content-Type: application/json
   "text": "Hello with custom parameters",
   "voice": "my_voice.wav",
   "temperature": 1.7,
-  "min_p": 0.1,
-  "top_p": 0.9,
-  "top_k": 50,
+   "top_p": 0.9,
+   "top_k": 50,
    "repetition_penalty": 1.0,
-   "norm_loudness": true,
    "language": "English"
 }
 ```
@@ -132,11 +130,9 @@ The server is designed to work seamlessly with the TTS Discord client:
 | Parameter | Type | Range | Default | Description |
 |-----------|------|-------|---------|-------------|
 | temperature | float | 0.05-5.0 | 1.7 | Controls randomness in generation |
-| min_p | float | 0.0-1.0 | 0.1 | Minimum probability threshold |
 | top_p | float | 0.0-1.0 | 0.9 | Nucleus sampling threshold |
 | top_k | int | 1-100 | 50 | Top-k sampling parameter |
 | repetition_penalty | float | 0.5-2.0 | 1.0 | Penalty for repetition |
-| norm_loudness | bool | - | true | Normalize output loudness |
 | language | string | - | Auto | Language selection |
 
 ## Troubleshooting

@@ -51,6 +51,19 @@ def test_server_structure():
             print(f"❌ Missing endpoint: {endpoint}")
             return False
     
+    # Check for language support details
+    if '"supported_languages"' in content:
+        print("✅ Supported languages listed in model info")
+    else:
+        print("❌ Supported languages missing in model info")
+        return False
+
+    if 'language: str = Field(default="Auto")' in content:
+        print("✅ Language field default found")
+    else:
+        print("❌ Language field default missing")
+        return False
+
     # Check for references directory creation
     if 'REF_DIR.mkdir(exist_ok=True)' in content:
         print("✅ References directory creation found")

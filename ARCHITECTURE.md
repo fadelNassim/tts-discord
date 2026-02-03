@@ -40,7 +40,7 @@ User Input
     │
     ├─ Text: "Hello world"
     ├─ Voice: "my_voice.wav"
-    └─ Parameters: temperature, min_p, etc.
+    └─ Parameters: temperature, top_p, etc.
     │
     ▼
 Electron Client (renderer.js)
@@ -175,11 +175,10 @@ Content-Type: application/json
   "text": "Text to convert to speech",
   "voice": "my_voice.wav",
   "temperature": 1.7,       // Optional
-  "min_p": 0.1,             // Optional
   "top_p": 0.9,             // Optional
   "top_k": 50,              // Optional
   "repetition_penalty": 1.0,// Optional
-  "norm_loudness": true     // Optional
+  "language": "English"     // Optional
 }
 ```
 
