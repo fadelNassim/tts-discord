@@ -270,7 +270,7 @@ class TTSRequest(BaseModel):
     voice: str
     language: str = Field(default="Auto")
     # Qwen3-TTS parameters
-    temperature: float = Field(1.7, ge=0.05, le=5.0)
+    temperature: float = Field(1.7, ge=0.05, le=5.0)  # Matches prior behavior for stability.
     top_p: float = Field(0.9, ge=0.0, le=1.0)
     top_k: int = Field(50, ge=1, le=100)
     repetition_penalty: float = Field(1.0, ge=0.5, le=2.0)
@@ -280,7 +280,7 @@ class TTSRequest(BaseModel):
 # =======================
 
 def clean_text(text: str) -> str:
-    """Clean and prepare text by removing control characters while preserving Unicode."""
+    """Clean and prepare text by removing control chars (0x00-0x1f, 0x7f) while preserving Unicode."""
     text = text.strip()
     text = re.sub(r"[\x00-\x1f\x7f]", "", text)
     return text[:600]
@@ -391,7 +391,7 @@ def api_tts_endpoint(req: TTSRequest):
             repetition_penalty=req.repetition_penalty
         )
 
-        if not wavs or len(wavs) == 0:
+        if not wavs:
             raise RuntimeError("No audio returned from Qwen3-TTS")
 
         # Save the generated audio
