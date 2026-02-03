@@ -37,6 +37,9 @@ function loadSettings() {
 function saveSettings() {
   localStorage.setItem('serverAddress', serverAddressInput.value);
   localStorage.setItem('voiceDir', currentVoiceDir);
+  if (voiceSelect.value) {
+    localStorage.setItem('selectedVoice', voiceSelect.value);
+  }
 }
 
 // Setup event listeners

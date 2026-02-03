@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const axios = require('axios');
 
 let mainWindow;
 
@@ -79,7 +80,6 @@ ipcMain.handle('select-directory', async () => {
 });
 
 ipcMain.handle('send-tts-request', async (event, data) => {
-  const axios = require('axios');
   const { text, voice, serverAddress } = data;
   
   try {
