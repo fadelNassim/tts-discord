@@ -53,8 +53,9 @@ The application will automatically detect and list these files in the dropdown.
 ### Windows
 1. Download and install [VB-Audio Virtual Cable](https://vb-audio.com/Cable/)
 2. Open Discord → Settings → Voice & Video
-3. Set Input Device to "CABLE Output (VB-Audio Virtual Cable)"
-4. Use a media player to play generated audio to "CABLE Input"
+3. Set Input Device to "CABLE Output (VB-Audio Virtual Cable)" (or set Input Device to **Default** and make CABLE Output your Windows default input)
+4. Make sure this app plays audio to "CABLE Input" (set per-app output device in Windows Volume Mixer)
+5. Enable **Auto-play generated audio to Discord mic** in the app
 
 ### macOS
 1. Install [BlackHole](https://github.com/ExistentialAudio/BlackHole)
@@ -63,12 +64,26 @@ The application will automatically detect and list these files in the dropdown.
 4. Play audio through the Multi-Output Device
 
 ### Linux
-1. Create a virtual sink with PulseAudio:
-   ```bash
-   pactl load-module module-null-sink sink_name=virtual_speaker
-   ```
-2. Set Discord input to the virtual sink monitor
-3. Play audio to the virtual sink
+This repo includes an automated PipeWire/PulseAudio setup that creates a virtual mic and makes Discord pick it up with no manual routing per-clip.
+
+**Recommended (in-app):**
+1. Click **Setup** under **Discord Mic Routing (Linux)**
+2. In Discord → Settings → Voice & Video, set **Input Device** to **Default** (do this once)
+3. Enable **Auto-play generated audio to Discord mic**
+4. Generate speech — it will be injected into Discord automatically
+
+**Terminal alternative:**
+```bash
+npm run discord:setup
+npm run discord:teardown
+```
+
+Notes:
+- The setup script sets your *default input source* to `tts_discord_sink.monitor` so Discord can follow it when Input Device is **Default**.
+- Use **Restore** (or `npm run discord:teardown`) to switch your default input back.
+
+Limitations:
+- Windows/macOS cannot create new audio devices in software without installing a virtual audio driver (VB-Cable / BlackHole). This repo automates routing on Linux; on Windows/macOS, install the virtual device and then select it in Discord.
 
 ## Settings Persistence
 

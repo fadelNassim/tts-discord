@@ -29,30 +29,60 @@
         </div>
 
         <div class="form-group">
-          <label for="voiceDir">
-            <span class="label-icon">📁</span>
-            Voice Samples Directory
-          </label>
-          <div class="input-with-button">
-            <input 
-              type="text" 
-              id="voiceDir" 
-              placeholder="Select directory with voice samples"
-              readonly
-            >
-            <button id="browseDirBtn" class="btn-secondary">Browse</button>
-            <button id="fetchServerVoicesBtn" class="btn-secondary">From Server</button>
-          </div>
-        </div>
-
-        <div class="form-group">
           <label for="voiceSelect">
             <span class="label-icon">🎵</span>
             Select Voice Sample
           </label>
-          <select id="voiceSelect" disabled>
-            <option value="">Select a voice sample directory first</option>
-          </select>
+          <div class="input-with-button">
+            <select id="voiceSelect" disabled>
+              <option value="">Click Refresh to load voices</option>
+            </select>
+            <button id="refreshVoicesBtn" class="btn-secondary">Refresh</button>
+          </div>
+          <p class="hint">Voices are loaded from the server's <code>references/</code> directory.</p>
+        </div>
+
+        <div class="form-group">
+          <label>
+            <span class="label-icon">🎮</span>
+            Discord Mic Routing
+          </label>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="discordOsMode">OS</label>
+            <select id="discordOsMode">
+              <option value="auto">Auto-detect</option>
+              <option value="linux">Linux</option>
+              <option value="windows">Windows</option>
+              <option value="macos">macOS</option>
+            </select>
+          </div>
+
+          <div class="checkbox-row">
+            <input type="checkbox" id="discordAutoPlay">
+            <label for="discordAutoPlay" class="inline-label">Auto-play generated audio to Discord mic</label>
+          </div>
+
+          <div class="input-with-button">
+            <input
+              type="text"
+              id="discordSinkName"
+              placeholder="tts_discord_sink"
+              value="tts_discord_sink"
+            >
+            <button id="discordSetupBtn" class="btn-secondary">Setup</button>
+            <button id="discordTeardownBtn" class="btn-secondary">Restore</button>
+          </div>
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="discordWindowsCable">Windows device hint</label>
+            <input
+              type="text"
+              id="discordWindowsCable"
+              placeholder="VB-Cable (CABLE Input / CABLE Output)"
+              value="CABLE"
+            >
+          </div>
+          <p class="hint">Linux: creates a virtual mic via PipeWire/PulseAudio and can set your default input to it. Windows: install VB-Cable, set Discord input to CABLE Output, and route this app's output to CABLE Input in Windows sound settings.</p>
         </div>
       </div>
 
@@ -72,6 +102,7 @@
         <button id="generateBtn" class="btn-primary">
           🔊 Generate Speech
         </button>
+        <div id="playbackStatus" class="playback-status idle">Playback: idle</div>
         <div id="statusMessage" class="status-message"></div>
       </div>
 
@@ -79,19 +110,18 @@
         <h3>📋 Instructions</h3>
         <ol>
           <li>Set your Chatterbox TTS server address (default: http://localhost:5002)</li>
-          <li>Browse and select the directory containing your voice samples (.wav, .mp3, .ogg, .flac)</li>
-          <li>Choose a voice sample from the dropdown</li>
+          <li>Click Refresh to load voice samples from the server</li>
+          <li>Choose a voice sample from the dropdown (server <code>references/</code>)</li>
           <li>Type the text you want to convert to speech</li>
           <li>Click "Generate Speech" to create the audio</li>
           <li>The audio will be saved in the audio_output folder</li>
         </ol>
-        
-        <h3>🎮 Discord Integration</h3>
-        <p>To use the generated audio with Discord:</p>
+
+        <h3>🎮 Discord (Automated)</h3>
         <ul>
-          <li>Install a virtual audio cable (e.g., VB-Audio Virtual Cable)</li>
-          <li>Set the virtual cable as your Discord input device</li>
-          <li>Play the generated audio through the virtual cable</li>
+          <li>Click <b>Setup</b> once (Linux) and set Discord Input Device to <b>Default</b></li>
+          <li>Enable <b>Auto-play generated audio to Discord mic</b></li>
+          <li>Generate speech — it will be injected into Discord automatically</li>
         </ul>
       </div>
     </main>

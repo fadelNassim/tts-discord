@@ -155,11 +155,24 @@ except Exception as e:
     print(f"[ERROR] Failed to initialize model: {e}")
     exit(1)
 
-# =======================
-# REFERENCES DIRECTORY
-# =======================
+ # =======================
+ # REFERENCES DIRECTORY
+ # =======================
 
-REF_DIR = Path(__file__).parent / "references"
+def _get_references_dir() -> Path:
+    """Resolve the server-side references directory.
+
+    Note: The Electron UI's "voice directory" is only for client-side listing.
+    The server always reads reference audio from its own filesystem.
+    Override with env var `TTS_REFERENCES_DIR` when needed.
+    """
+    raw = os.environ.get("TTS_REFERENCES_DIR", "").strip()
+    if raw:
+        return Path(raw).expanduser().resolve()
+    return (Path(__file__).parent / "references").resolve()
+
+
+REF_DIR = _get_references_dir()
 
 # Create references directory if it doesn't exist
 REF_DIR.mkdir(exist_ok=True)
@@ -541,6 +554,7 @@ if __name__ == "__main__":
     import uvicorn
     print(f"[STARTUP] Starting Chatterbox Turbo server on port 5002")
     print(f"[STARTUP] References directory: {REF_DIR}")
+    print("[STARTUP] Override with: TTS_REFERENCES_DIR=/path/to/references")
     print(f"[STARTUP] Available endpoints:")
     print(f"         POST /api/tts - TTS with voice parameter (client compatible)")
     print(f"         POST /tts - TTS with full parameter control")

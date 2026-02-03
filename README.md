@@ -99,18 +99,29 @@ npm start
 
 ## Discord Integration
 
-To use the generated audio with Discord:
+### Linux (Automated, recommended)
 
-1. **Install a Virtual Audio Cable** (see Prerequisites)
+This app can automatically inject each generated TTS clip into Discord by creating a virtual mic via PipeWire/PulseAudio.
 
-2. **Configure Discord:**
-   - Open Discord Settings → Voice & Video
-   - Set your Input Device to the virtual audio cable
+1. In the app, click **Setup** under **Discord Mic Routing (Linux)**
+2. In Discord → Settings → Voice & Video, set **Input Device** to **Default** (do this once)
+3. Enable **Auto-play generated audio to Discord mic** in the app
 
-3. **Play Generated Audio:**
-   - Use any audio player to play the generated audio file
-   - Route the audio player's output to the virtual audio cable input
-   - Your voice will be heard in Discord voice channels
+Alternative (terminal):
+- `npm run discord:setup`
+- `npm run discord:teardown`
+
+### Windows / macOS
+
+Use a virtual audio cable device and set it as Discord’s input:
+- Windows: VB-Audio Virtual Cable
+- macOS: BlackHole
+
+Then route this app’s audio output into that virtual cable:
+- Windows: set Discord input to **CABLE Output**, and set this app’s output device to **CABLE Input** (Windows per-app output device settings)
+- macOS: set Discord input to BlackHole and route this app’s output to it (or a Multi-Output device)
+
+Note: on Windows/macOS the OS does not let apps create new “sink devices” in software without installing a driver (VB-Cable / BlackHole). This repo can automate sink creation only on Linux.
 
 ## Project Structure
 

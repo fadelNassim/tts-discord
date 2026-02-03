@@ -1,17 +1,63 @@
 // DOM elements
 const serverAddressInput = document.getElementById('serverAddress');
-const voiceDirInput = document.getElementById('voiceDir');
-const browseDirBtn = document.getElementById('browseDirBtn');
-const fetchServerVoicesBtn = document.getElementById('fetchServerVoicesBtn');
 const voiceSelect = document.getElementById('voiceSelect');
+const refreshVoicesBtn = document.getElementById('refreshVoicesBtn');
 const textInput = document.getElementById('textInput');
 const generateBtn = document.getElementById('generateBtn');
 const statusMessage = document.getElementById('statusMessage');
+const playbackStatus = document.getElementById('playbackStatus');
+const discordAutoPlayCheckbox = document.getElementById('discordAutoPlay');
+const discordSinkNameInput = document.getElementById('discordSinkName');
+const discordSetupBtn = document.getElementById('discordSetupBtn');
+const discordTeardownBtn = document.getElementById('discordTeardownBtn');
+const discordOsModeSelect = document.getElementById('discordOsMode');
+const discordWindowsCableInput = document.getElementById('discordWindowsCable');
 
 // State
-let currentVoiceDir = '';
 let voiceSamples = [];
-let voiceSource = 'local'; // 'local' | 'server'
+
+let currentAudio = null;
+
+function setPlaybackStatus(message, type) {
+  if (!playbackStatus) return;
+  const safeType = type || 'idle';
+  playbackStatus.className = `playback-status ${safeType}`;
+  playbackStatus.textContent = message || 'Playback: idle';
+}
+
+async function playInAppWavFile(audioPath) {
+  const result = await window.electronAPI.readAudioFileBase64(audioPath);
+  if (!result?.success) {
+    throw new Error(result?.error || 'Failed to read audio file');
+  }
+
+  const binary = atob(result.base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  const blob = new Blob([bytes], { type: 'audio/wav' });
+  const url = URL.createObjectURL(blob);
+
+  if (currentAudio) {
+    try { currentAudio.pause(); } catch {}
+    currentAudio = null;
+  }
+
+  const audio = new Audio(url);
+  currentAudio = audio;
+
+  setPlaybackStatus('Playback: playing in app…', 'playing');
+  audio.onended = () => {
+    URL.revokeObjectURL(url);
+    setPlaybackStatus('Playback: finished', 'sent');
+  };
+  audio.onerror = () => {
+    URL.revokeObjectURL(url);
+    setPlaybackStatus('Playback: error (failed to decode/play)', 'error');
+  };
+  await audio.play();
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -22,28 +68,34 @@ document.addEventListener('DOMContentLoaded', () => {
 // Load saved settings from localStorage
 function loadSettings() {
   const savedServerAddress = localStorage.getItem('serverAddress');
-  const savedVoiceDir = localStorage.getItem('voiceDir');
-  const savedVoiceSource = localStorage.getItem('voiceSource');
   
   if (savedServerAddress) {
     serverAddressInput.value = savedServerAddress;
   }
 
-  if (savedVoiceSource === 'server' || savedVoiceSource === 'local') {
-    voiceSource = savedVoiceSource;
+  const savedDiscordAutoPlay = localStorage.getItem('discordAutoPlay');
+  if (savedDiscordAutoPlay !== null) {
+    discordAutoPlayCheckbox.checked = savedDiscordAutoPlay === 'true';
   }
-  
-  if (voiceSource === 'server') {
-    // Server voice listing doesn't need a local directory.
-    voiceDirInput.value = 'Using voices from server';
-    const serverAddress = serverAddressInput.value.trim();
-    if (serverAddress) {
-      loadServerVoices(serverAddress);
-    }
-  } else if (savedVoiceDir) {
-    voiceDirInput.value = savedVoiceDir;
-    currentVoiceDir = savedVoiceDir;
-    loadVoiceSamples(savedVoiceDir);
+
+  const savedDiscordSinkName = localStorage.getItem('discordSinkName');
+  if (savedDiscordSinkName) {
+    discordSinkNameInput.value = savedDiscordSinkName;
+  }
+
+  const savedDiscordOsMode = localStorage.getItem('discordOsMode');
+  if (savedDiscordOsMode) {
+    discordOsModeSelect.value = savedDiscordOsMode;
+  }
+
+  const savedDiscordWindowsCable = localStorage.getItem('discordWindowsCable');
+  if (savedDiscordWindowsCable) {
+    discordWindowsCableInput.value = savedDiscordWindowsCable;
+  }
+
+  const serverAddress = serverAddressInput.value.trim();
+  if (serverAddress) {
+    loadServerVoices(serverAddress);
   }
 }
 
@@ -54,50 +106,95 @@ function saveSettings() {
     serverAddressInput.value = serverAddressInput.value.trim().replace(/\/+$/, '');
   }
   localStorage.setItem('serverAddress', serverAddressInput.value);
-  localStorage.setItem('voiceDir', currentVoiceDir);
-  localStorage.setItem('voiceSource', voiceSource);
   if (voiceSelect.value) {
     localStorage.setItem('selectedVoice', voiceSelect.value);
+  }
+
+  localStorage.setItem('discordAutoPlay', String(!!discordAutoPlayCheckbox.checked));
+  if (discordSinkNameInput.value) {
+    localStorage.setItem('discordSinkName', discordSinkNameInput.value.trim());
+  }
+
+  if (discordOsModeSelect.value) {
+    localStorage.setItem('discordOsMode', discordOsModeSelect.value);
+  }
+
+  if (discordWindowsCableInput.value) {
+    localStorage.setItem('discordWindowsCable', discordWindowsCableInput.value.trim());
   }
 }
 
 // Setup event listeners
 function setupEventListeners() {
-  browseDirBtn.addEventListener('click', handleBrowseDirectory);
-  fetchServerVoicesBtn.addEventListener('click', handleFetchServerVoices);
+  refreshVoicesBtn.addEventListener('click', handleRefreshVoices);
   generateBtn.addEventListener('click', handleGenerateSpeech);
+  discordSetupBtn.addEventListener('click', handleDiscordSetup);
+  discordTeardownBtn.addEventListener('click', handleDiscordTeardown);
   
-  serverAddressInput.addEventListener('change', saveSettings);
+  serverAddressInput.addEventListener('change', () => {
+    saveSettings();
+    const serverAddress = serverAddressInput.value.trim();
+    if (serverAddress) {
+      loadServerVoices(serverAddress);
+    }
+  });
   voiceSelect.addEventListener('change', saveSettings);
+  discordAutoPlayCheckbox.addEventListener('change', saveSettings);
+  discordSinkNameInput.addEventListener('change', saveSettings);
+  discordOsModeSelect.addEventListener('change', saveSettings);
+  discordWindowsCableInput.addEventListener('change', saveSettings);
 }
 
-// Handle directory browsing
-async function handleBrowseDirectory() {
+async function handleDiscordSetup() {
+  const sinkName = (discordSinkNameInput.value || '').trim() || 'tts_discord_sink';
+  const osMode = (discordOsModeSelect.value || 'auto').trim();
+  const windowsCableHint = (discordWindowsCableInput.value || '').trim();
+  showStatus('Setting up Discord virtual mic...', 'loading');
+  discordSetupBtn.disabled = true;
   try {
-    const dirPath = await window.electronAPI.selectDirectory();
-    
-    if (dirPath) {
-      voiceSource = 'local';
-      currentVoiceDir = dirPath;
-      voiceDirInput.value = dirPath;
-      saveSettings();
-      await loadVoiceSamples(dirPath);
+    const result = await window.electronAPI.discordAudioSetup({
+      os: osMode,
+      sinkName,
+      windowsCableHint,
+      monitorToSpeakers: false
+    });
+    if (result?.success) {
+      const prefix = result?.requiresUserAction ? 'ℹ️' : '✅';
+      showStatus(`${prefix} Discord audio setup.\n${result.output || ''}`.trim(), 'success');
+    } else {
+      showStatus(`❌ Discord setup failed.\n${result?.output || ''}`.trim(), 'error');
     }
-  } catch (error) {
-    showStatus('Error selecting directory: ' + error.message, 'error');
+  } catch (e) {
+    showStatus(`❌ Discord setup error: ${e.message}`, 'error');
+  } finally {
+    discordSetupBtn.disabled = false;
   }
 }
 
-async function handleFetchServerVoices() {
+async function handleDiscordTeardown() {
+  showStatus('Restoring audio defaults...', 'loading');
+  discordTeardownBtn.disabled = true;
+  try {
+    const result = await window.electronAPI.discordAudioTeardown();
+    if (result?.success) {
+      showStatus(`✅ Audio defaults restored.\n${result.output || ''}`.trim(), 'success');
+    } else {
+      showStatus(`❌ Restore failed.\n${result?.output || ''}`.trim(), 'error');
+    }
+  } catch (e) {
+    showStatus(`❌ Restore error: ${e.message}`, 'error');
+  } finally {
+    discordTeardownBtn.disabled = false;
+  }
+}
+
+async function handleRefreshVoices() {
   const serverAddress = serverAddressInput.value.trim();
   if (!serverAddress) {
     showStatus('Please enter a server address first', 'error');
     return;
   }
 
-  voiceSource = 'server';
-  currentVoiceDir = '';
-  voiceDirInput.value = 'Using voices from server';
   saveSettings();
   await loadServerVoices(serverAddress);
 }
@@ -144,56 +241,6 @@ async function loadServerVoices(serverAddress) {
   }
 }
 
-// Load voice samples from directory
-async function loadVoiceSamples(dirPath) {
-  try {
-    showStatus('Loading voice samples...', 'loading');
-    
-    const samples = await window.electronAPI.getVoiceSamples(dirPath);
-    voiceSamples = samples;
-    
-    // Clear and populate dropdown
-    voiceSelect.innerHTML = '';
-    
-    if (samples.length === 0) {
-      const option = document.createElement('option');
-      option.value = '';
-      option.textContent = 'No voice samples found in directory';
-      voiceSelect.appendChild(option);
-      voiceSelect.disabled = true;
-      showStatus('No voice samples found. Add .wav, .mp3, .ogg, or .flac files to the directory.', 'error');
-    } else {
-      // Add default option
-      const defaultOption = document.createElement('option');
-      defaultOption.value = '';
-      defaultOption.textContent = `Select a voice (${samples.length} available)`;
-      voiceSelect.appendChild(defaultOption);
-      
-      // Add voice samples
-      samples.forEach(sample => {
-        const option = document.createElement('option');
-        option.value = sample;
-        option.textContent = sample;
-        voiceSelect.appendChild(option);
-      });
-      
-      voiceSelect.disabled = false;
-      showStatus(`Loaded ${samples.length} voice sample(s)`, 'success');
-      
-      // Auto-select first voice if available
-      if (samples.length > 0) {
-        const savedVoice = localStorage.getItem('selectedVoice');
-        if (savedVoice && samples.includes(savedVoice)) {
-          voiceSelect.value = savedVoice;
-        }
-      }
-    }
-  } catch (error) {
-    showStatus('Error loading voice samples: ' + error.message, 'error');
-    voiceSelect.disabled = true;
-  }
-}
-
 // Handle speech generation
 async function handleGenerateSpeech() {
   // Validate inputs
@@ -220,19 +267,57 @@ async function handleGenerateSpeech() {
   generateBtn.disabled = true;
   generateBtn.textContent = '⏳ Generating...';
   showStatus('Connecting to TTS server...', 'loading');
+  setPlaybackStatus('Playback: preparing…', 'idle');
   
   try {
     // Send TTS request
+    saveSettings();
     const result = await window.electronAPI.sendTTSRequest({
       text: text,
       voice: voice,
-      serverAddress: serverAddress
+      serverAddress: serverAddress,
+      discord: {
+        autoPlay: !!discordAutoPlayCheckbox.checked,
+        os: (discordOsModeSelect.value || 'auto').trim(),
+        sinkName: (discordSinkNameInput.value || '').trim() || 'tts_discord_sink'
+      }
     });
     
     if (result.success) {
-      showStatus(`✅ Speech generated successfully! Audio saved to: ${result.audioPath}`, 'success');
+      const playback = result.discordPlayback;
+      if (discordAutoPlayCheckbox.checked && playback && playback.started === false) {
+        setPlaybackStatus(`Playback: error (${playback.error || 'unknown'})`, 'error');
+        showStatus(
+          `⚠️ Speech generated, but Discord auto-play failed: ${playback.error || 'unknown error'}\nAudio saved to: ${result.audioPath}`,
+          'error'
+        );
+      } else if (discordAutoPlayCheckbox.checked && playback && playback.started === true) {
+        if (playback.playInApp === true) {
+          try {
+            await playInAppWavFile(result.audioPath);
+          } catch (e) {
+            setPlaybackStatus(`Playback: error (${e.message})`, 'error');
+            showStatus(
+              `⚠️ Speech generated, but in-app playback failed: ${e.message}\nAudio saved to: ${result.audioPath}`,
+              'error'
+            );
+            localStorage.setItem('selectedVoice', voice);
+            return;
+          }
+        } else {
+          setPlaybackStatus(`Playback: sent via ${playback.player || 'player'}`, 'sent');
+        }
+        showStatus(
+          `✅ Speech generated and sent to Discord (${playback.player}). Audio saved to: ${result.audioPath}`,
+          'success'
+        );
+      } else {
+        setPlaybackStatus('Playback: not sent (auto-play off)', 'idle');
+        showStatus(`✅ Speech generated successfully! Audio saved to: ${result.audioPath}`, 'success');
+      }
       localStorage.setItem('selectedVoice', voice);
     } else {
+      setPlaybackStatus('Playback: error (generation failed)', 'error');
       showStatus(`❌ Failed to generate speech: ${result.error}`, 'error');
     }
   } catch (error) {
