@@ -44,6 +44,26 @@ function pulseSinkExists(sinkName) {
   return out.split(/\r?\n/).some(line => line.split(/\s+/)[1] === sinkName);
 }
 
+function pulseSourceExists(sourceName) {
+  if (!sourceName) return false;
+  if (!hasCommand('pactl')) return null; // unknown
+  const result = spawnSync('pactl', ['list', 'short', 'sources'], { encoding: 'utf8' });
+  if (result.status !== 0) return null;
+  const out = String(result.stdout || '');
+  return out.split(/\r?\n/).some(line => line.split(/\s+/)[1] === sourceName);
+}
+
+function getPulseDefaults() {
+  if (!hasCommand('pactl')) return null;
+  const result = spawnSync('pactl', ['info'], { encoding: 'utf8' });
+  if (result.status !== 0) return null;
+
+  const text = String(result.stdout || '');
+  const defaultSink = (text.match(/^Default Sink:\s*(.+)$/m)?.[1] || '').trim();
+  const defaultSource = (text.match(/^Default Source:\s*(.+)$/m)?.[1] || '').trim();
+  return { defaultSink: defaultSink || null, defaultSource: defaultSource || null };
+}
+
 function getLinuxInstallHint() {
   if (hasCommand('apt-get') || hasCommand('apt')) {
     return "sudo apt-get update && sudo apt-get install -y pulseaudio-utils pipewire-pulse";
@@ -325,7 +345,53 @@ ipcMain.handle('discord-audio-setup', async (_event, options) => {
         ].join('\n')
       };
     }
-    return runDiscordPulseScript('discord_pulse_setup.sh', { sinkName, monitorToSpeakers });
+    const resolvedSinkName = String(sinkName || process.env.TTS_DISCORD_SINK || 'tts_discord_sink').trim() || 'tts_discord_sink';
+    const result = await runDiscordPulseScript('discord_pulse_setup.sh', { sinkName: resolvedSinkName, monitorToSpeakers });
+
+    // Verify creation so the UI can confidently confirm success.
+    // Discord needs a microphone SOURCE. We'll accept either a dedicated remapped source or the sink's monitor.
+    const expectedVirtualSource = `${resolvedSinkName}_mic`;
+    const expectedMonitorSource = `${resolvedSinkName}.monitor`;
+    const virtualSourceExists = pulseSourceExists(expectedVirtualSource);
+    const monitorSourceExists = pulseSourceExists(expectedMonitorSource);
+    const detectedSource = virtualSourceExists ? expectedVirtualSource : (monitorSourceExists ? expectedMonitorSource : null);
+    const sinkExists = pulseSinkExists(resolvedSinkName);
+    const defaults = getPulseDefaults();
+
+    const sinkStatus = sinkExists === true ? '✅ DETECTED' : sinkExists === false ? '❌ MISSING' : '⚠️ UNKNOWN';
+    const sourceStatus = detectedSource
+      ? `✅ DETECTED (${detectedSource})`
+      : (virtualSourceExists === null || monitorSourceExists === null ? '⚠️ UNKNOWN' : '❌ MISSING');
+
+    const verificationLines = [
+      '--- Verification ---',
+      `Sink '${resolvedSinkName}': ${sinkStatus}`,
+      `Mic source '${expectedVirtualSource}' or '${expectedMonitorSource}': ${sourceStatus}`,
+      `Default source: ${defaults?.defaultSource || '⚠️ UNKNOWN'}`
+    ];
+
+    const combinedOutput = [result.output, verificationLines.join('\n')].filter(Boolean).join('\n');
+
+    // If the script said OK but we can't see the sink/source, treat as failure with actionable hints.
+    if (result.success) {
+      const missingSink = sinkExists === false;
+      const missingSource = virtualSourceExists === false && monitorSourceExists === false;
+      if (missingSink || missingSource) {
+        return {
+          success: false,
+          output: [
+            combinedOutput,
+            '',
+            '[ERROR] Setup ran, but the virtual device was not detected.',
+            '[HINT] Make sure PipeWire/PulseAudio is running for your user session.',
+            '[HINT] If Discord is Flatpak/Snap, it may not see host audio devices without extra permissions.',
+            '[HINT] Try: pactl list short sinks && pactl list short sources'
+          ].join('\n')
+        };
+      }
+    }
+
+    return { success: result.success, output: combinedOutput };
   }
 
   if (osMode === 'windows') {

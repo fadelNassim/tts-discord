@@ -79,7 +79,8 @@ npm run discord:teardown
 ```
 
 Notes:
-- The setup script sets your *default input source* to `tts_discord_sink.monitor` so Discord can follow it when Input Device is **Default**.
+- The setup script creates a virtual sink and then exposes it as a *microphone source* (preferred: `tts_discord_sink_mic`; fallback: `tts_discord_sink.monitor`).
+- Discord can either use **Input Device = Default** (recommended) or you can select **TTS Discord Mic** directly if it appears.
 - Use **Restore** (or `npm run discord:teardown`) to switch your default input back.
 
 Limitations:

@@ -28,14 +28,14 @@ body {
 }
 
 .container {
-  max-width: 900px;
+  max-width: 1000px;
   margin: 0 auto;
   padding: 20px;
 }
 
 header {
   text-align: center;
-  padding: 30px 0;
+  padding: 18px 0;
   background: var(--surface);
   border-radius: 12px;
   margin-bottom: 30px;
@@ -70,6 +70,43 @@ main {
   padding: 25px;
   border-radius: 12px;
   box-shadow: 0 2px 4px var(--shadow);
+}
+
+/* Advanced <details> panel */
+.advanced-panel {
+  padding: 0;
+}
+
+.advanced-panel > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  padding: 18px 20px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.advanced-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary-title {
+  font-weight: 700;
+}
+
+.summary-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.9em;
+}
+
+.advanced-panel[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.advanced-content {
+  padding: 20px;
 }
 
 .form-group {
@@ -133,6 +170,54 @@ textarea {
   resize: vertical;
   min-height: 120px;
   font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* Quickbar (server + voice + generate) */
+.quickbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
+.quickbar-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+  min-width: 260px;
+}
+
+.quickbar-right .playback-status {
+  margin-top: 0;
+}
+
+@media (max-width: 820px) {
+  .quickbar {
+    grid-template-columns: 1fr;
+  }
+  .quickbar-right {
+    min-width: 0;
+  }
+}
+
+.btn-generate {
+  width: auto;
+  padding: 12px 18px;
+  font-size: 1.05em;
+}
+
+.checkbox-compact {
+  margin: 0;
+}
+
+/* Collapsible help panel */
+.info-panel summary {
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
 }
 
 .input-with-button {

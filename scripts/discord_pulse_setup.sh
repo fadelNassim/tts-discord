@@ -36,6 +36,8 @@ DEFAULT_SOURCE="$(pactl info | awk -F': ' '/Default Source:/{print $2}')"
   echo "PREV_DEFAULT_SINK=$DEFAULT_SINK"
   echo "PREV_DEFAULT_SOURCE=$DEFAULT_SOURCE"
   echo "NULL_SINK_MODULE_ID="
+  echo "REMAP_SOURCE_MODULE_ID="
+  echo "VIRTUAL_SOURCE_NAME="
   echo "LOOPBACK_MODULE_ID="
 } > "$STATE_FILE"
 
@@ -51,9 +53,36 @@ fi
 
 MONITOR_SOURCE="${SINK_NAME}.monitor"
 
-# Set default source to the monitor so Discord can use "Default" input.
-pactl set-default-source "$MONITOR_SOURCE"
-echo "[OK] Default source set to: $MONITOR_SOURCE"
+# Prefer creating a dedicated virtual mic (source) so Discord can list/select it.
+# If the module isn't available (some pipewire-pulse builds), fall back to using the monitor source.
+VIRTUAL_SOURCE_NAME="${SINK_NAME}_mic"
+
+if pactl list short sources | awk '{print $2}' | grep -qx "$VIRTUAL_SOURCE_NAME"; then
+  echo "[OK] Virtual mic source already exists: $VIRTUAL_SOURCE_NAME"
+else
+  set +e
+  REMAP_ID="$(pactl load-module module-remap-source \
+    master="$MONITOR_SOURCE" \
+    source_name="$VIRTUAL_SOURCE_NAME" \
+    source_properties="device.description=TTS%20Discord%20Mic" 2>/dev/null)"
+  REMAP_RC=$?
+  set -e
+
+  if [[ $REMAP_RC -eq 0 && -n "${REMAP_ID:-}" ]]; then
+    sed -i "s/^REMAP_SOURCE_MODULE_ID=.*/REMAP_SOURCE_MODULE_ID=$REMAP_ID/" "$STATE_FILE"
+    sed -i "s/^VIRTUAL_SOURCE_NAME=.*/VIRTUAL_SOURCE_NAME=$VIRTUAL_SOURCE_NAME/" "$STATE_FILE"
+    echo "[OK] Created virtual mic source: $VIRTUAL_SOURCE_NAME (module $REMAP_ID)"
+  else
+    echo "[WARN] Could not create remapped mic source (module-remap-source unavailable?)."
+    echo "[HINT] Falling back to monitor source: $MONITOR_SOURCE"
+    VIRTUAL_SOURCE_NAME="$MONITOR_SOURCE"
+    sed -i "s/^VIRTUAL_SOURCE_NAME=.*/VIRTUAL_SOURCE_NAME=$VIRTUAL_SOURCE_NAME/" "$STATE_FILE"
+  fi
+fi
+
+# Set default source so Discord can use "Default" input.
+pactl set-default-source "$VIRTUAL_SOURCE_NAME"
+echo "[OK] Default source set to: $VIRTUAL_SOURCE_NAME"
 
 # Optional: also hear the TTS locally by looping it into your current default sink.
 if [[ "$MONITOR_TO_SPEAKERS" == "1" ]]; then
@@ -64,5 +93,6 @@ fi
 
 echo
 echo "[NEXT] In Discord: Settings → Voice & Video → Input Device = Default"
+echo "       Or select: TTS Discord Mic (if listed)"
 echo "       Then enable 'Auto-play to Discord mic' in the app."
 echo "[INFO] State saved to: $STATE_FILE"

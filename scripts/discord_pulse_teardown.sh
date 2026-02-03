@@ -41,6 +41,11 @@ if [[ -n "${LOOPBACK_MODULE_ID:-}" ]]; then
   echo "[OK] Unloaded loopback module: $LOOPBACK_MODULE_ID"
 fi
 
+if [[ -n "${REMAP_SOURCE_MODULE_ID:-}" ]]; then
+  pactl unload-module "$REMAP_SOURCE_MODULE_ID" || true
+  echo "[OK] Unloaded remap-source module: $REMAP_SOURCE_MODULE_ID"
+fi
+
 if [[ -n "${NULL_SINK_MODULE_ID:-}" ]]; then
   pactl unload-module "$NULL_SINK_MODULE_ID" || true
   echo "[OK] Unloaded null sink module: $NULL_SINK_MODULE_ID"

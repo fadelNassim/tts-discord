@@ -63,7 +63,48 @@ async function playInAppWavFile(audioPath) {
 document.addEventListener('DOMContentLoaded', () => {
   loadSettings();
   setupEventListeners();
+  // Keyboard-first flow
+  try { textInput?.focus(); } catch {}
 });
+
+function loadCachedVoices() {
+  try {
+    const raw = localStorage.getItem('cachedVoices');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedVoices(voices) {
+  try {
+    if (Array.isArray(voices) && voices.length) {
+      localStorage.setItem('cachedVoices', JSON.stringify(voices));
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function populateVoiceSelect(voices, { placeholder } = {}) {
+  voiceSelect.innerHTML = '';
+
+  const defaultOption = document.createElement('option');
+  defaultOption.value = '';
+  defaultOption.textContent = placeholder || `Select a voice (${voices.length} available)`;
+  voiceSelect.appendChild(defaultOption);
+
+  voices.forEach(sample => {
+    const option = document.createElement('option');
+    option.value = sample;
+    option.textContent = sample;
+    voiceSelect.appendChild(option);
+  });
+
+  voiceSelect.disabled = false;
+}
 
 // Load saved settings from localStorage
 function loadSettings() {
@@ -95,6 +136,15 @@ function loadSettings() {
 
   const serverAddress = serverAddressInput.value.trim();
   if (serverAddress) {
+    // Fast path: show cached voices instantly, then refresh from server.
+    const cached = loadCachedVoices();
+    const savedVoice = localStorage.getItem('selectedVoice');
+    if (cached && cached.length) {
+      populateVoiceSelect(cached, { placeholder: `Select a voice (cached: ${cached.length})` });
+      if (savedVoice && cached.includes(savedVoice)) {
+        voiceSelect.value = savedVoice;
+      }
+    }
     loadServerVoices(serverAddress);
   }
 }
@@ -130,6 +180,44 @@ function setupEventListeners() {
   generateBtn.addEventListener('click', handleGenerateSpeech);
   discordSetupBtn.addEventListener('click', handleDiscordSetup);
   discordTeardownBtn.addEventListener('click', handleDiscordTeardown);
+
+  // Enter to generate, Shift+Enter for newline (textarea).
+  textInput.addEventListener('keydown', (e) => {
+    if (e.isComposing) return;
+    if (e.key !== 'Enter') return;
+    if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+    // Avoid double-trigger while generating.
+    if (generateBtn.disabled) return;
+    e.preventDefault();
+    handleGenerateSpeech();
+  });
+
+  // Global shortcuts (chosen to avoid common browser/Electron conflicts)
+  document.addEventListener('keydown', (e) => {
+    if (e.isComposing) return;
+    if (!(e.ctrlKey && e.altKey)) return;
+    const key = String(e.key || '').toLowerCase();
+
+    if (key === 't') {
+      e.preventDefault();
+      try { textInput.focus(); } catch {}
+      return;
+    }
+    if (key === 'v') {
+      e.preventDefault();
+      try { voiceSelect.focus(); } catch {}
+      return;
+    }
+    if (key === 's') {
+      e.preventDefault();
+      try { serverAddressInput.focus(); } catch {}
+      return;
+    }
+    if (key === 'g') {
+      e.preventDefault();
+      if (!generateBtn.disabled) handleGenerateSpeech();
+    }
+  });
   
   serverAddressInput.addEventListener('change', () => {
     saveSettings();
@@ -216,19 +304,8 @@ async function loadServerVoices(serverAddress) {
       return;
     }
 
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = `Select a voice (${samples.length} available on server)`;
-    voiceSelect.appendChild(defaultOption);
-
-    samples.forEach(sample => {
-      const option = document.createElement('option');
-      option.value = sample;
-      option.textContent = sample;
-      voiceSelect.appendChild(option);
-    });
-
-    voiceSelect.disabled = false;
+    populateVoiceSelect(samples, { placeholder: `Select a voice (${samples.length} available on server)` });
+    saveCachedVoices(samples);
     showStatus(`Loaded ${samples.length} server voice(s)`, 'success');
 
     const savedVoice = localStorage.getItem('selectedVoice');
@@ -236,8 +313,18 @@ async function loadServerVoices(serverAddress) {
       voiceSelect.value = savedVoice;
     }
   } catch (error) {
-    showStatus('Error loading server voices: ' + error.message, 'error');
-    voiceSelect.disabled = true;
+    const cached = loadCachedVoices();
+    if (cached && cached.length) {
+      populateVoiceSelect(cached, { placeholder: `Select a voice (cached: ${cached.length})` });
+      const savedVoice = localStorage.getItem('selectedVoice');
+      if (savedVoice && cached.includes(savedVoice)) {
+        voiceSelect.value = savedVoice;
+      }
+      showStatus(`⚠️ Server unreachable; using cached voices. (${error.message})`, 'error');
+    } else {
+      showStatus('Error loading server voices: ' + error.message, 'error');
+      voiceSelect.disabled = true;
+    }
   }
 }
 
@@ -325,19 +412,29 @@ async function handleGenerateSpeech() {
   } finally {
     // Re-enable button
     generateBtn.disabled = false;
-    generateBtn.textContent = '🔊 Generate Speech';
+    generateBtn.textContent = '🔊 Generate';
   }
 }
 
 // Show status message
+let statusHideTimer = null;
 function showStatus(message, type) {
+  if (statusHideTimer) {
+    clearTimeout(statusHideTimer);
+    statusHideTimer = null;
+  }
+
   statusMessage.textContent = message;
   statusMessage.className = 'status-message ' + type;
+  statusMessage.style.display = 'block';
   
   // Auto-hide success messages after 5 seconds
-  if (type === 'success') {
-    setTimeout(() => {
+  // Keep Discord setup/restore confirmations visible.
+  const shouldAutoHide = type === 'success' && /^✅\s*Speech generated/i.test(String(message || ''));
+  if (shouldAutoHide) {
+    statusHideTimer = setTimeout(() => {
       statusMessage.style.display = 'none';
+      statusHideTimer = null;
     }, 5000);
   }
 }
