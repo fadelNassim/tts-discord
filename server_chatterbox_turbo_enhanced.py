@@ -280,7 +280,7 @@ class TTSRequest(BaseModel):
 # =======================
 
 def clean_text(text: str) -> str:
-    """Clean and prepare text by removing control chars (0x00-0x1f, 0x7f) while preserving Unicode."""
+    """Clean and prepare text by removing control chars (0x00-0x1f, 0x7f)."""
     text = text.strip()
     text = re.sub(r"[\x00-\x1f\x7f]", "", text)
     return text[:600]
@@ -380,6 +380,7 @@ def api_tts_endpoint(req: TTSRequest):
                 raise ValueError(
                     f"Unsupported language '{language}'. Supported: {sorted(SUPPORTED_LANGUAGES)}"
                 )
+        # Use x_vector_only_mode to avoid requiring reference transcripts.
         wavs, sample_rate = tts.generate_voice_clone(
             text=cleaned_text,
             language=language,
