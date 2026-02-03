@@ -166,7 +166,11 @@ except Exception as e:
     print(f"[ERROR] Failed to initialize model: {e}")
     exit(1)
 
-SUPPORTED_LANGUAGES = tts.get_supported_languages() if tts else None
+try:
+    SUPPORTED_LANGUAGES = tts.get_supported_languages() if tts else None
+except Exception as e:
+    SUPPORTED_LANGUAGES = None
+    print(f"[WARNING] Failed to fetch supported languages: {e}")
 
  # =======================
  # REFERENCES DIRECTORY
@@ -276,7 +280,7 @@ class TTSRequest(BaseModel):
 # =======================
 
 def clean_text(text: str) -> str:
-    """Clean and prepare text for TTS (preserve non-Latin scripts)."""
+    """Clean and prepare text by removing control characters while preserving Unicode."""
     text = text.strip()
     text = re.sub(r"[\x00-\x1f\x7f]", "", text)
     return text[:600]
