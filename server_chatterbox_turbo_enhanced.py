@@ -226,15 +226,10 @@ def get_reference_path(voice_filename: str) -> Path:
 
 app = FastAPI(title="Chatterbox-Turbo-Enhanced", version="1.0")
 
-# Legacy TTS request model (for /api/tts endpoint - client compatibility)
-class LegacyTTSRequest(BaseModel):
-    text: str
-    voice: str
-
-# Enhanced TTS request model (for /tts endpoint - full features)
+# TTS request model (used by both endpoints)
 class TTSRequest(BaseModel):
     text: str
-    persona: str = Field("default", pattern="^(dj|announcer|default)$")
+    voice: str
     # ChatterboxTurboTTS parameters (no speed parameter)
     temperature: float = Field(1.7, ge=0.05, le=5.0)
     min_p: float = Field(0.1, ge=0.0, le=1.0)
@@ -319,13 +314,13 @@ def peak_limit_float_debug(
 # =======================
 
 @app.post("/api/tts")
-def legacy_tts_endpoint(req: LegacyTTSRequest):
+def api_tts_endpoint(req: TTSRequest):
     """
-    Legacy TTS endpoint for client compatibility
-    Accepts 'text' and 'voice' parameters
+    TTS endpoint for client compatibility
+    Accepts 'text' and 'voice' parameters with optional advanced settings
     """
     
-    print(f"[DEBUG] Legacy API endpoint called")
+    print(f"[DEBUG] API endpoint called")
     print(f"[DEBUG] Text: {req.text}")
     print(f"[DEBUG] Voice: {req.voice}")
     
@@ -336,74 +331,6 @@ def legacy_tts_endpoint(req: LegacyTTSRequest):
         out_path = Path(tmp.name)
 
     try:
-        # Clean the text
-        cleaned_text = clean_text(req.text)
-        print(f"[DEBUG] Cleaned text: {cleaned_text}")
-
-        # Generate audio with Chatterbox Turbo (using default parameters)
-        wav = tts.generate(
-            cleaned_text,
-            audio_prompt_path=str(ref_path),
-            temperature=1.7,
-            min_p=0.1,
-            top_p=0.9,
-            top_k=50,
-            repetition_penalty=1.0,
-            norm_loudness=True
-        )
-
-        # Save the generated audio
-        ta.save(str(out_path), wav, tts.sr)
-
-        print("[DEBUG] Inference complete")
-
-        # Apply peak limiting with debug
-        peak_limit_float_debug(out_path, target_dbfs=-1.0)
-
-        # Return the audio file
-        return Response(
-            content=out_path.read_bytes(),
-            media_type="audio/wav",
-            headers={"Content-Disposition": "attachment; filename=out.wav"},
-        )
-
-    except Exception as e:
-        print(f"[ERROR] TTS generation failed: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"TTS generation failed: {str(e)}")
-        
-    finally:
-        # Cleanup
-        out_path.unlink(missing_ok=True)
-        if device == "cuda":
-            torch.cuda.empty_cache()
-        gc.collect()
-        print("[DEBUG] Cleanup complete")
-
-@app.post("/tts")
-def tts_endpoint(req: TTSRequest):
-    """TTS endpoint with full parameter control and persona support"""
-    
-    # Map persona to reference file
-    PERSONA_REFS = {
-        "dj": "dj.wav",
-        "announcer": "announcer.wav",
-        "default": "default.wav"
-    }
-    
-    voice_file = PERSONA_REFS.get(req.persona, "default.wav")
-    ref_path = get_reference_path(voice_file)
-    
-    with NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        out_path = Path(tmp.name)
-
-    try:
-        print(f"[DEBUG] Starting Chatterbox Turbo inference")
-        print(f"[DEBUG] Text: {req.text}")
-        print(f"[DEBUG] Persona: {req.persona} (ref: {ref_path.name})")
-        print(f"[DEBUG] Parameters: temperature={req.temperature}, min_p={req.min_p}, top_p={req.top_p}")
-
         # Clean the text
         cleaned_text = clean_text(req.text)
         print(f"[DEBUG] Cleaned text: {cleaned_text}")
@@ -448,6 +375,13 @@ def tts_endpoint(req: TTSRequest):
             torch.cuda.empty_cache()
         gc.collect()
         print("[DEBUG] Cleanup complete")
+
+@app.post("/tts")
+def tts_endpoint(req: TTSRequest):
+    """TTS endpoint with full parameter control - same as /api/tts"""
+    
+    # Both endpoints now work identically
+    return api_tts_endpoint(req)
 
 # =======================
 # HEALTH CHECK
@@ -495,8 +429,8 @@ def model_info():
         ],
         "sample_rate": getattr(tts, 'sr', 24000),
         "endpoints": {
-            "/api/tts": "Legacy endpoint for client compatibility (text, voice)",
-            "/tts": "Enhanced endpoint with full parameter control (persona-based)",
+            "/api/tts": "TTS endpoint for client compatibility (text, voice)",
+            "/tts": "TTS endpoint with full parameter control (same as /api/tts)",
             "/health": "Health check",
             "/info": "Model information",
             "/validate-references": "Validate reference audio files",
@@ -600,8 +534,8 @@ if __name__ == "__main__":
     print(f"[STARTUP] Starting Chatterbox Turbo server on port 5002")
     print(f"[STARTUP] References directory: {REF_DIR}")
     print(f"[STARTUP] Available endpoints:")
-    print(f"         POST /api/tts - Legacy TTS (client compatible)")
-    print(f"         POST /tts - Enhanced TTS with full parameters")
+    print(f"         POST /api/tts - TTS with voice parameter (client compatible)")
+    print(f"         POST /tts - TTS with full parameter control")
     print(f"         GET  /health - Health check")
     print(f"         GET  /info - Model information")
     print(f"         GET  /validate-references - Check reference audio files")

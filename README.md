@@ -157,7 +157,7 @@ Content-Type: application/json
 
 {
   "text": "Custom text",
-  "persona": "default",
+  "voice": "voice_sample_filename.wav",
   "temperature": 1.7,
   "min_p": 0.1,
   "top_p": 0.9

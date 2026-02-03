@@ -69,14 +69,14 @@ Content-Type: application/json
 
 Response: WAV audio file
 
-#### 2. Enhanced TTS Endpoint
+#### 2. Enhanced TTS Endpoint (with advanced parameters)
 ```bash
 POST /tts
 Content-Type: application/json
 
 {
   "text": "Hello with custom parameters",
-  "persona": "default",
+  "voice": "my_voice.wav",
   "temperature": 1.7,
   "min_p": 0.1,
   "top_p": 0.9,
@@ -86,7 +86,7 @@ Content-Type: application/json
 }
 ```
 
-Personas: `dj`, `announcer`, `default` (requires corresponding files in references/)
+Both endpoints work identically - use any voice file from your references/ directory.
 
 #### 3. Health Check
 ```bash
