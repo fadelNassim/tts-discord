@@ -1,0 +1,26 @@
+[Unit]
+Description=TTS Discord Server - Chatterbox Turbo
+After=network.target
+
+[Service]
+Type=simple
+User=tts-user
+WorkingDirectory=/opt/tts-discord
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+ExecStart=/usr/bin/python3 /opt/tts-discord/server_chatterbox_turbo_enhanced.py
+Restart=on-failure
+RestartSec=10s
+
+# Resource Limits
+MemoryLimit=8G
+CPUQuota=400%
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/tts-discord/references /opt/tts-discord/audio_output
+
+[Install]
+WantedBy=multi-user.target

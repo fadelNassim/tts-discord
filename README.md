@@ -1,9 +1,10 @@
 # TTS Discord 🎙️
 
-A desktop application for Text-to-Speech with voice cloning capabilities, designed to work seamlessly with Discord using virtual audio cables.
+A desktop application for Text-to-Speech with voice cloning capabilities, designed to work seamlessly with Discord using virtual audio cables. Includes a powerful FastAPI-based TTS server using Chatterbox Turbo for zero-shot voice cloning.
 
 ## Features
 
+### Desktop App
 - 🎵 **Text-to-Speech Generation** - Convert text to speech using a local Chatterbox TTS server
 - 🎭 **Voice Cloning** - Import and use voice samples for voice duplication
 - 📁 **Voice Sample Management** - Easy dropdown to select from local voice samples
@@ -11,14 +12,27 @@ A desktop application for Text-to-Speech with voice cloning capabilities, design
 - 🎮 **Discord Integration** - Use generated audio as input in Discord via virtual audio cable
 - 🖥️ **User-Friendly UI** - Clean, Discord-themed interface that's easy to use
 
+### TTS Server (Included)
+- 🚀 **Chatterbox Turbo** - State-of-the-art zero-shot voice cloning
+- 🎛️ **Advanced Controls** - Temperature, sampling, and more
+- 📦 **Multiple Formats** - Supports WAV, MP3, OGG, and FLAC input
+- ✅ **Audio Validation** - Ensures voice samples meet quality requirements
+- 🔌 **RESTful API** - Easy integration with any client
+- 🌐 **Offline Mode** - Works without internet after initial setup
+
 ## Prerequisites
 
+### Desktop App
 1. **Node.js** (v16 or higher)
-2. **Chatterbox TTS Server** running locally (default: http://localhost:5002)
-3. **Virtual Audio Cable** (for Discord integration):
+2. **Virtual Audio Cable** (for Discord integration):
    - Windows: [VB-Audio Virtual Cable](https://vb-audio.com/Cable/)
    - macOS: [BlackHole](https://github.com/ExistentialAudio/BlackHole)
    - Linux: PulseAudio virtual sink
+
+### TTS Server (Optional - Included)
+1. **Python 3.8+**
+2. **Hugging Face account** (for Chatterbox TTS access)
+3. **CUDA GPU** (recommended) or CPU
 
 ## Installation
 
@@ -28,30 +42,60 @@ git clone https://github.com/fadelNassim/tts-discord.git
 cd tts-discord
 ```
 
-2. Install dependencies:
+2. Install desktop app dependencies:
 ```bash
 npm install
 ```
 
-## Usage
+3. (Optional) Setup the included TTS server:
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Authenticate with Hugging Face
+./setup_chatterbox_auth.sh <your-huggingface-token>
+
+# Create references directory and add voice samples
+mkdir -p references
+```
+
+Get your Hugging Face token from: https://huggingface.co/settings/tokens
+
+## Quick Start
+
+### Using the Included Server
+
+1. **Start the TTS server:**
+```bash
+python3 server_chatterbox_turbo_enhanced.py
+```
+Server will run on `http://localhost:5002`
+
+2. **Start the desktop app:**
+```bash
+npm start
+```
+
+3. **Configure the app:**
+   - Server address: `http://localhost:5002`
+   - Browse to select the `references/` directory
+   - Choose a voice sample from the dropdown
+
+4. **Generate speech:**
+   - Enter your text
+   - Click "Generate Speech"
+   - Audio saved to `audio_output/` folder
+
+### Using an External Server
 
 1. **Start the application:**
 ```bash
 npm start
 ```
 
-2. **Configure the TTS Server:**
-   - Enter your Chatterbox TTS server address (default: http://localhost:5002)
+2. **Configure your external server address**
 
-3. **Select Voice Samples:**
-   - Click "Browse" to select a directory containing voice sample files
-   - Supported formats: .wav, .mp3, .ogg, .flac
-   - Select a voice from the dropdown
-
-4. **Generate Speech:**
-   - Type the text you want to convert to speech
-   - Click "Generate Speech"
-   - Audio files are saved in the `audio_output` folder
+3. **Select voice samples and generate speech**
 
 ## Discord Integration
 
@@ -72,22 +116,31 @@ To use the generated audio with Discord:
 
 ```
 tts-discord/
-├── main.js           # Electron main process
-├── preload.js        # Preload script for IPC
-├── index.html        # Main UI
-├── styles.css        # Application styles
-├── renderer.js       # UI logic and event handlers
-├── package.json      # Project dependencies
-├── audio_output/     # Generated audio files (auto-created)
-└── README.md         # This file
+├── main.js                              # Electron main process
+├── preload.js                           # Preload script for IPC
+├── renderer.js                          # UI logic and event handlers
+├── index.html                           # Main UI
+├── styles.css                           # Application styles
+├── package.json                         # Node.js dependencies
+├── server_chatterbox_turbo_enhanced.py  # TTS server
+├── requirements.txt                     # Python dependencies
+├── setup_chatterbox_auth.sh            # Server setup script
+├── test_server_structure.py            # Server validation
+├── references/                          # Voice samples directory
+├── audio_output/                        # Generated audio (auto-created)
+├── README.md                            # This file
+├── SERVER_README.md                     # Server documentation
+├── QUICKSTART.md                        # Quick start guide
+└── USAGE.md                             # Detailed usage guide
 ```
 
-## API Integration
+## API Documentation
 
-The application communicates with a Chatterbox TTS server using the following API endpoint:
+The included server exposes multiple endpoints:
 
-```
-POST {serverAddress}/api/tts
+### Client Endpoint (Used by Desktop App)
+```http
+POST /api/tts
 Content-Type: application/json
 
 {
@@ -95,8 +148,29 @@ Content-Type: application/json
   "voice": "voice_sample_filename.wav"
 }
 ```
+Returns: WAV audio file
 
-The server should return audio data in WAV format.
+### Enhanced Endpoint (Advanced)
+```http
+POST /tts
+Content-Type: application/json
+
+{
+  "text": "Custom text",
+  "voice": "voice_sample_filename.wav",
+  "temperature": 1.7,
+  "min_p": 0.1,
+  "top_p": 0.9
+}
+```
+
+### Other Endpoints
+- `GET /health` - Server health check
+- `GET /info` - Model information
+- `GET /list-voices` - List available voices
+- `GET /validate-references` - Validate voice samples
+
+See `SERVER_README.md` for complete API documentation.
 
 ## Development
 
@@ -105,21 +179,28 @@ Run in development mode with DevTools:
 npm run dev
 ```
 
+## Documentation
+
+- 📖 **[Quick Start Guide](QUICKSTART.md)** - Get up and running quickly
+- 📖 **[Server Documentation](SERVER_README.md)** - Detailed server setup and API docs
+- 📖 **[Usage Guide](USAGE.md)** - Desktop app usage instructions
+
 ## Troubleshooting
 
-**No voice samples appearing:**
-- Ensure the directory contains supported audio files (.wav, .mp3, .ogg, .flac)
-- Check file permissions
+**Server Issues:**
+- **Server won't start**: Check Python dependencies are installed
+- **Authentication failed**: Run `./setup_chatterbox_auth.sh <token>`
+- **Voice file not found**: Ensure files are in `references/` directory
+- **Out of memory**: Server will automatically use CPU if GPU unavailable
 
-**TTS generation fails:**
-- Verify the Chatterbox TTS server is running
-- Check the server address is correct
-- Ensure the server can access the voice sample files
+**Desktop App Issues:**
+- **No voice samples appearing**: Browse to the correct directory containing audio files
+- **Can't connect to server**: Verify server is running on correct port (5002)
+- **TTS generation fails**: Check server logs for errors
 
-**Discord not receiving audio:**
-- Confirm virtual audio cable is installed and configured
-- Set Discord input device to the virtual cable
-- Check audio player is routing to the virtual cable
+**Discord Integration:**
+- **Audio not playing**: Verify virtual audio cable is configured correctly
+- **Poor audio quality**: Use higher quality voice samples (5+ seconds)
 
 ## License
 
