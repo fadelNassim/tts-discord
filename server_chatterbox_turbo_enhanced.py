@@ -190,9 +190,17 @@ def get_reference_path(voice_filename: str) -> Path:
                 break
     
     if not voice_path.exists():
+        available = []
+        if REF_DIR.exists():
+            for ext in ['.wav', '.mp3', '.ogg', '.flac']:
+                available.extend([p.name for p in REF_DIR.glob(f"*{ext}")])
+        available.sort()
         raise HTTPException(
             status_code=404,
-            detail=f"Voice file '{voice_filename}' not found in references directory"
+            detail=(
+                f"Voice file '{voice_filename}' not found in references directory: {REF_DIR}. "
+                f"Available voices: {available}"
+            ),
         )
     
     # Validate the audio file

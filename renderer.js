@@ -2,6 +2,7 @@
 const serverAddressInput = document.getElementById('serverAddress');
 const voiceDirInput = document.getElementById('voiceDir');
 const browseDirBtn = document.getElementById('browseDirBtn');
+const fetchServerVoicesBtn = document.getElementById('fetchServerVoicesBtn');
 const voiceSelect = document.getElementById('voiceSelect');
 const textInput = document.getElementById('textInput');
 const generateBtn = document.getElementById('generateBtn');
@@ -10,6 +11,7 @@ const statusMessage = document.getElementById('statusMessage');
 // State
 let currentVoiceDir = '';
 let voiceSamples = [];
+let voiceSource = 'local'; // 'local' | 'server'
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -21,12 +23,24 @@ document.addEventListener('DOMContentLoaded', () => {
 function loadSettings() {
   const savedServerAddress = localStorage.getItem('serverAddress');
   const savedVoiceDir = localStorage.getItem('voiceDir');
+  const savedVoiceSource = localStorage.getItem('voiceSource');
   
   if (savedServerAddress) {
     serverAddressInput.value = savedServerAddress;
   }
+
+  if (savedVoiceSource === 'server' || savedVoiceSource === 'local') {
+    voiceSource = savedVoiceSource;
+  }
   
-  if (savedVoiceDir) {
+  if (voiceSource === 'server') {
+    // Server voice listing doesn't need a local directory.
+    voiceDirInput.value = 'Using voices from server';
+    const serverAddress = serverAddressInput.value.trim();
+    if (serverAddress) {
+      loadServerVoices(serverAddress);
+    }
+  } else if (savedVoiceDir) {
     voiceDirInput.value = savedVoiceDir;
     currentVoiceDir = savedVoiceDir;
     loadVoiceSamples(savedVoiceDir);
@@ -35,8 +49,13 @@ function loadSettings() {
 
 // Save settings to localStorage
 function saveSettings() {
+  // Normalize common user input: trailing slashes can lead to //api/tts
+  if (serverAddressInput.value) {
+    serverAddressInput.value = serverAddressInput.value.trim().replace(/\/+$/, '');
+  }
   localStorage.setItem('serverAddress', serverAddressInput.value);
   localStorage.setItem('voiceDir', currentVoiceDir);
+  localStorage.setItem('voiceSource', voiceSource);
   if (voiceSelect.value) {
     localStorage.setItem('selectedVoice', voiceSelect.value);
   }
@@ -45,6 +64,7 @@ function saveSettings() {
 // Setup event listeners
 function setupEventListeners() {
   browseDirBtn.addEventListener('click', handleBrowseDirectory);
+  fetchServerVoicesBtn.addEventListener('click', handleFetchServerVoices);
   generateBtn.addEventListener('click', handleGenerateSpeech);
   
   serverAddressInput.addEventListener('change', saveSettings);
@@ -57,6 +77,7 @@ async function handleBrowseDirectory() {
     const dirPath = await window.electronAPI.selectDirectory();
     
     if (dirPath) {
+      voiceSource = 'local';
       currentVoiceDir = dirPath;
       voiceDirInput.value = dirPath;
       saveSettings();
@@ -64,6 +85,62 @@ async function handleBrowseDirectory() {
     }
   } catch (error) {
     showStatus('Error selecting directory: ' + error.message, 'error');
+  }
+}
+
+async function handleFetchServerVoices() {
+  const serverAddress = serverAddressInput.value.trim();
+  if (!serverAddress) {
+    showStatus('Please enter a server address first', 'error');
+    return;
+  }
+
+  voiceSource = 'server';
+  currentVoiceDir = '';
+  voiceDirInput.value = 'Using voices from server';
+  saveSettings();
+  await loadServerVoices(serverAddress);
+}
+
+async function loadServerVoices(serverAddress) {
+  try {
+    showStatus('Loading voices from server...', 'loading');
+    const samples = await window.electronAPI.getServerVoices(serverAddress);
+    voiceSamples = samples;
+
+    voiceSelect.innerHTML = '';
+    if (!samples || samples.length === 0) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'No voices found on server';
+      voiceSelect.appendChild(option);
+      voiceSelect.disabled = true;
+      showStatus('No valid voices found on server. Add 5s+ audio files to the server references/ directory.', 'error');
+      return;
+    }
+
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = `Select a voice (${samples.length} available on server)`;
+    voiceSelect.appendChild(defaultOption);
+
+    samples.forEach(sample => {
+      const option = document.createElement('option');
+      option.value = sample;
+      option.textContent = sample;
+      voiceSelect.appendChild(option);
+    });
+
+    voiceSelect.disabled = false;
+    showStatus(`Loaded ${samples.length} server voice(s)`, 'success');
+
+    const savedVoice = localStorage.getItem('selectedVoice');
+    if (savedVoice && samples.includes(savedVoice)) {
+      voiceSelect.value = savedVoice;
+    }
+  } catch (error) {
+    showStatus('Error loading server voices: ' + error.message, 'error');
+    voiceSelect.disabled = true;
   }
 }
 
