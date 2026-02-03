@@ -77,6 +77,19 @@ def test_server_structure():
     else:
         print("❌ Model loading return tuple missing model_id")
         return False
+
+    # Check for language handling pieces
+    if 'language = req.language.strip() or "Auto"' in content:
+        print("✅ Language fallback to Auto found")
+    else:
+        print("❌ Language fallback to Auto missing")
+        return False
+
+    if 'supported_lower = {lang.lower(): lang for lang in SUPPORTED_LANGUAGES}' in content:
+        print("✅ Language normalization found")
+    else:
+        print("❌ Language normalization missing")
+        return False
     
     return True
 

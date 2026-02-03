@@ -280,7 +280,7 @@ class TTSRequest(BaseModel):
 # =======================
 
 def clean_text(text: str) -> str:
-    """Clean and prepare text by removing control chars (0x00-0x1f, 0x7f)."""
+    """Clean and prepare text by removing control chars (0x00-0x1f, 0x7f) for multilingual input."""
     text = text.strip()
     text = re.sub(r"[\x00-\x1f\x7f]", "", text)
     return text[:600]
@@ -375,11 +375,13 @@ def api_tts_endpoint(req: TTSRequest):
         # Generate audio with Qwen3-TTS
         language = req.language.strip() or "Auto"
         if language != "Auto" and SUPPORTED_LANGUAGES:
-            supported_lower = {lang.lower() for lang in SUPPORTED_LANGUAGES}
-            if language.lower() not in supported_lower:
+            supported_lower = {lang.lower(): lang for lang in SUPPORTED_LANGUAGES}
+            normalized = supported_lower.get(language.lower())
+            if not normalized:
                 raise ValueError(
                     f"Unsupported language '{language}'. Supported: {sorted(SUPPORTED_LANGUAGES)}"
                 )
+            language = normalized
         # Use x_vector_only_mode to avoid requiring reference transcripts.
         wavs, sample_rate = tts.generate_voice_clone(
             text=cleaned_text,
@@ -393,7 +395,7 @@ def api_tts_endpoint(req: TTSRequest):
         )
 
         if not wavs:
-            raise RuntimeError("No audio returned from Qwen3-TTS")
+            raise RuntimeError("No audio returned from Qwen3-TTS (check input text, reference audio, and model status)")
 
         # Save the generated audio
         sf.write(str(out_path), wavs[0], sample_rate)
