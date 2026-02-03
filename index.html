@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TTS Discord</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎙️ TTS Discord</h1>
+      <p class="subtitle">Text-to-Speech with Voice Cloning</p>
+    </header>
+
+    <main>
+      <div class="settings-panel">
+        <div class="form-group">
+          <label for="serverAddress">
+            <span class="label-icon">🌐</span>
+            TTS Server Address
+          </label>
+          <input 
+            type="text" 
+            id="serverAddress" 
+            placeholder="http://localhost:5002"
+            value="http://localhost:5002"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="voiceDir">
+            <span class="label-icon">📁</span>
+            Voice Samples Directory
+          </label>
+          <div class="input-with-button">
+            <input 
+              type="text" 
+              id="voiceDir" 
+              placeholder="Select directory with voice samples"
+              readonly
+            >
+            <button id="browseDirBtn" class="btn-secondary">Browse</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="voiceSelect">
+            <span class="label-icon">🎵</span>
+            Select Voice Sample
+          </label>
+          <select id="voiceSelect" disabled>
+            <option value="">Select a voice sample directory first</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="text-input-panel">
+        <label for="textInput">
+          <span class="label-icon">✍️</span>
+          Text to Speak
+        </label>
+        <textarea 
+          id="textInput" 
+          placeholder="Type what you want to say here..."
+          rows="8"
+        ></textarea>
+      </div>
+
+      <div class="action-panel">
+        <button id="generateBtn" class="btn-primary">
+          🔊 Generate Speech
+        </button>
+        <div id="statusMessage" class="status-message"></div>
+      </div>
+
+      <div class="info-panel">
+        <h3>📋 Instructions</h3>
+        <ol>
+          <li>Set your Chatterbox TTS server address (default: http://localhost:5002)</li>
+          <li>Browse and select the directory containing your voice samples (.wav, .mp3, .ogg, .flac)</li>
+          <li>Choose a voice sample from the dropdown</li>
+          <li>Type the text you want to convert to speech</li>
+          <li>Click "Generate Speech" to create the audio</li>
+          <li>The audio will be saved in the audio_output folder</li>
+        </ol>
+        
+        <h3>🎮 Discord Integration</h3>
+        <p>To use the generated audio with Discord:</p>
+        <ul>
+          <li>Install a virtual audio cable (e.g., VB-Audio Virtual Cable)</li>
+          <li>Set the virtual cable as your Discord input device</li>
+          <li>Play the generated audio through the virtual cable</li>
+        </ul>
+      </div>
+    </main>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
