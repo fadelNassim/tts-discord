@@ -32,7 +32,7 @@ Thank you for your interest in contributing! This guide will help you get starte
 
 2. **Setup authentication (first time only):**
    ```bash
-   ./setup_chatterbox_auth.sh <your-hf-token>
+   ./setup.sh <your-hf-token>
    ```
 
 3. **Run the server:**

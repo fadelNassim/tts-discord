@@ -1,5 +1,5 @@
 [Unit]
-Description=TTS Discord Server - Chatterbox Turbo
+Description=TTS Discord Server - Qwen3-TTS
 After=network.target
 
 [Service]

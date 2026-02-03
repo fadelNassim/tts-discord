@@ -10,7 +10,7 @@ This guide covers deploying the TTS server in various environments.
 pip install -r requirements.txt
 
 # Setup authentication
-./setup_chatterbox_auth.sh <your-hf-token>
+./setup.sh <your-hf-token>
 
 # Add voice samples
 mkdir -p references
@@ -63,7 +63,7 @@ Server runs on `http://localhost:5002`
 
 6. **Setup authentication:**
    ```bash
-   ./setup_chatterbox_auth.sh <your-hf-token>
+   ./setup.sh <your-hf-token>
    ```
 
 7. **Add voice samples:**

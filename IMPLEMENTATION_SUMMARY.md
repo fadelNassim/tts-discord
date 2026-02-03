@@ -2,7 +2,7 @@
 
 ## Overview
 
-This implementation adds a comprehensive TTS (Text-to-Speech) server to the TTS Discord project using Chatterbox Turbo for zero-shot voice cloning. The server integrates seamlessly with the existing Electron desktop client.
+This implementation adds a comprehensive TTS (Text-to-Speech) server to the TTS Discord project using Qwen3-TTS for zero-shot voice cloning. The server integrates seamlessly with the existing Electron desktop client.
 
 ## What Was Implemented
 
@@ -33,7 +33,7 @@ A production-ready FastAPI server with the following features:
    - Checks duration, format, and readability of all voice samples
 
 #### Features
-- ✅ **Zero-shot voice cloning** using Chatterbox Turbo
+- ✅ **Zero-shot voice cloning** using Qwen3-TTS
 - ✅ **Multi-format support**: WAV, MP3, OGG, FLAC (auto-converts to WAV)
 - ✅ **Audio validation**: Ensures voice samples meet 5+ second requirement
 - ✅ **Offline mode**: Works without internet after initial setup
@@ -45,9 +45,9 @@ A production-ready FastAPI server with the following features:
 ### Supporting Files
 
 1. **requirements.txt** - Python dependencies
-   - FastAPI, Uvicorn, PyTorch, Torchaudio, Soundfile, NumPy, Pydantic, Chatterbox-TTS, Librosa
+   - FastAPI, Uvicorn, PyTorch, Torchaudio, Soundfile, NumPy, Pydantic, Qwen-TTS, Librosa
 
-2. **setup_chatterbox_auth.sh** - Authentication setup script
+2. **setup.sh** - Authentication setup script
    - Handles Hugging Face login
    - Downloads model on first run
    - Enables offline mode thereafter
@@ -135,7 +135,7 @@ Server (FastAPI)
     ↓
     | 1. Validate voice file
     | 2. Load reference audio
-    | 3. Generate speech with Chatterbox Turbo
+    | 3. Generate speech with Qwen3-TTS
     | 4. Apply peak limiting
     ↓
     | Return WAV audio
@@ -158,7 +158,7 @@ tts-discord/
 ├── Server (Python/FastAPI)
 │   ├── server_chatterbox_turbo_enhanced.py
 │   ├── requirements.txt
-│   └── setup_chatterbox_auth.sh
+│   └── setup.sh
 │
 ├── References (Voice Samples)
 │   └── references/          - User voice samples
@@ -245,7 +245,7 @@ Three-tier validation system:
 
 2. **Setup authentication**
    ```bash
-   ./setup_chatterbox_auth.sh <your-hf-token>
+   ./setup.sh <your-hf-token>
    ```
 
 3. **Add voice samples**

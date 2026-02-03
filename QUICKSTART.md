@@ -16,7 +16,7 @@ npm start
 pip install -r requirements.txt
 
 # Setup authentication (first time only)
-./setup_chatterbox_auth.sh <your-huggingface-token>
+./setup.sh <your-huggingface-token>
 
 # Add voice samples
 mkdir -p references
@@ -65,7 +65,8 @@ curl -X POST http://localhost:5002/tts \
     "text": "Hello with custom parameters",
     "persona": "default",
     "temperature": 1.7,
-    "top_p": 0.9
+  "top_p": 0.9,
+  "language": "English"
   }' \
   --output speech.wav
 ```
@@ -79,7 +80,7 @@ tts-discord/
 ├── index.html                           # Desktop app interface
 ├── server_chatterbox_turbo_enhanced.py  # TTS server
 ├── requirements.txt                     # Python dependencies
-├── setup_chatterbox_auth.sh            # Server setup script
+├── setup.sh                            # Server setup script
 ├── test_server_structure.py            # Server validation
 ├── references/                          # Voice samples (create this)
 │   ├── my_voice.wav
@@ -92,7 +93,7 @@ tts-discord/
 
 ### Server won't start
 - Install dependencies: `pip install -r requirements.txt`
-- Run setup: `./setup_chatterbox_auth.sh <token>`
+- Run setup: `./setup.sh <token>`
 - Check port 5002 is available
 
 ### Desktop app can't connect

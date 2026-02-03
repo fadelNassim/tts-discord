@@ -16,15 +16,16 @@
    - Enter your TTS server address (e.g., `http://localhost:5002`)
    - Click "Browse" to select a directory with voice samples
    - Choose a voice from the dropdown
+   - Choose a language (or Auto)
 
 4. **Generate Speech**
    - Type your text in the text area
    - Click "Generate Speech"
    - Audio files are saved in `audio_output/` folder
 
-## Chatterbox TTS Server Setup
+## Qwen3-TTS Server Setup
 
-The application requires a running Chatterbox TTS server. The server should expose an API endpoint:
+The application requires a running Qwen3-TTS server. The server should expose an API endpoint:
 
 ```
 POST /api/tts
@@ -32,7 +33,8 @@ Content-Type: application/json
 
 {
   "text": "Your text here",
-  "voice": "voice_sample.wav"
+   "voice": "voice_sample.wav",
+   "language": "Auto"
 }
 ```
 
