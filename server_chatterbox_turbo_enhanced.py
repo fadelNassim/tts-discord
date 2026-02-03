@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 server_chatterbox_turbo_enhanced.py
-Chatterbox Turbo FastAPI server with MP3 support and audio duration validation
+Qwen3-TTS FastAPI server with MP3 support and audio duration validation
 Designed to work with TTS Discord client
 """
 
@@ -18,11 +18,11 @@ import torchaudio as ta
 from fastapi import FastAPI, Response, HTTPException
 from pydantic import BaseModel, Field
 
-# Try to import ChatterboxTurboTTS
+# Try to import Qwen3TTSModel
 try:
-    from chatterbox.tts_turbo import ChatterboxTurboTTS
+    from qwen_tts import Qwen3TTSModel
 except ImportError:
-    print("[ERROR] chatterbox-tts not installed. Run: pip install chatterbox-tts")
+    print("[ERROR] qwen-tts not installed. Run: pip install qwen-tts")
     exit(1)
 
 # For MP3 support
@@ -39,44 +39,55 @@ except ImportError:
 
 def load_model_offline(device="auto"):
     """
-    Load Chatterbox Turbo in offline mode after initial authentication
+    Load Qwen3-TTS in offline mode after initial authentication
     """
+    model_id = os.environ.get("QWEN_TTS_MODEL", "Qwen/Qwen3-TTS-12Hz-1.7B-Base").strip()
     if device == "auto":
         device = "cuda" if torch.cuda.is_available() else "cpu"
-    
-    print(f"[INIT] Loading Chatterbox Turbo in offline mode")
-    print(f"[INIT] Device: {device}")
-    
+
+    device_map = "cuda:0" if device == "cuda" else "cpu"
+    if device_map != "cpu":
+        dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+    else:
+        dtype = torch.float32
+
+    print(f"[INIT] Loading Qwen3-TTS in offline mode")
+    print(f"[INIT] Model: {model_id}")
+    print(f"[INIT] Device: {device_map}")
+
     # Set environment variables for offline mode
-    os.environ['TRANSFORMERS_OFFLINE'] = '1'
-    os.environ['HF_DATASETS_OFFLINE'] = '1'
-    os.environ['HF_HUB_OFFLINE'] = '1'
-    os.environ['HF_HUB_DISABLE_SYMLINKS_WARNING'] = '1'
-    
+    os.environ.setdefault('TRANSFORMERS_OFFLINE', '1')
+    os.environ.setdefault('HF_DATASETS_OFFLINE', '1')
+    os.environ.setdefault('HF_HUB_OFFLINE', '1')
+    os.environ.setdefault('HF_HUB_DISABLE_SYMLINKS_WARNING', '1')
+
     try:
         # First, try to load with offline settings
-        model = ChatterboxTurboTTS.from_pretrained(
-            device=device,
-            local_files_only=True,  # Only use local files
-            force_download=False,
-            resume_download=False
+        model = Qwen3TTSModel.from_pretrained(
+            model_id,
+            device_map=device_map,
+            dtype=dtype,
+            local_files_only=True,
         )
         print("[INIT] Model loaded in offline mode")
-        return model, device
-        
+        return model, device_map, model_id
+
     except Exception as e:
         print(f"[WARNING] Offline loading failed: {e}")
         print("[INIT] Trying standard loading (may require internet)...")
-        
-        # Fallback: Try standard loading (will use cached files if available)
+
         try:
-            model = ChatterboxTurboTTS.from_pretrained(device=device)
+            model = Qwen3TTSModel.from_pretrained(
+                model_id,
+                device_map=device_map,
+                dtype=dtype,
+            )
             print("[INIT] Model loaded successfully")
-            return model, device
+            return model, device_map, model_id
         except Exception as e2:
             print(f"[ERROR] Failed to load model: {e2}")
             print("[INFO] Make sure you ran the setup script first:")
-            print("  ./setup_chatterbox_auth.sh <your-hf-token>")
+            print("  ./setup.sh <your-hf-token> [model-id]")
             raise
 
 # =======================
@@ -137,7 +148,7 @@ def validate_reference_audio(audio_path: Path) -> tuple[bool, str, float]:
     if duration == 0.0:
         return False, f"Could not read audio file: {audio_path}", 0.0
     
-    # Check minimum duration (5 seconds for Chatterbox Turbo)
+    # Check minimum duration (5 seconds for Qwen3-TTS)
     if duration < 5.0:
         return False, f"Audio too short: {duration:.1f}s. Must be at least 5.0 seconds", duration
     
@@ -150,10 +161,16 @@ def validate_reference_audio(audio_path: Path) -> tuple[bool, str, float]:
 
 # Load model
 try:
-    tts, device = load_model_offline()
+    tts, device, model_id = load_model_offline()
 except Exception as e:
     print(f"[ERROR] Failed to initialize model: {e}")
     exit(1)
+
+try:
+    SUPPORTED_LANGUAGES = tts.get_supported_languages() if tts else None
+except Exception as e:
+    SUPPORTED_LANGUAGES = None
+    print(f"[WARNING] Failed to fetch supported languages: {e}")
 
  # =======================
  # REFERENCES DIRECTORY
@@ -245,29 +262,27 @@ def get_reference_path(voice_filename: str) -> Path:
 # FASTAPI
 # =======================
 
-app = FastAPI(title="Chatterbox-Turbo-Enhanced", version="1.0")
+app = FastAPI(title="Qwen3-TTS", version="1.0")
 
 # TTS request model (used by both endpoints)
 class TTSRequest(BaseModel):
     text: str
     voice: str
-    # ChatterboxTurboTTS parameters (no speed parameter)
-    temperature: float = Field(1.7, ge=0.05, le=5.0)
-    min_p: float = Field(0.1, ge=0.0, le=1.0)
+    language: str = Field(default="Auto")
+    # Qwen3-TTS parameters
+    temperature: float = Field(1.7, ge=0.05, le=5.0)  # Matches prior behavior for stability.
     top_p: float = Field(0.9, ge=0.0, le=1.0)
     top_k: int = Field(50, ge=1, le=100)
     repetition_penalty: float = Field(1.0, ge=0.5, le=2.0)
-    norm_loudness: bool = Field(True)
 
 # =======================
 # TEXT CLEANING
 # =======================
 
 def clean_text(text: str) -> str:
-    """Clean and prepare text for TTS with paralinguistic tag support"""
+    """Clean and prepare text by removing control chars (0x00-0x1f, 0x7f) for multilingual input."""
     text = text.strip()
-    # Allow alphanumeric, spaces, common punctuation, and paralinguistic tags
-    text = re.sub(r"[^A-Za-z0-9\s.,!?'\-\"\[\]()]+", "", text)
+    text = re.sub(r"[\x00-\x1f\x7f]", "", text)
     return text[:600]
 
 # =======================
@@ -344,6 +359,7 @@ def api_tts_endpoint(req: TTSRequest):
     print(f"[DEBUG] API endpoint called")
     print(f"[DEBUG] Text: {req.text}")
     print(f"[DEBUG] Voice: {req.voice}")
+    print(f"[DEBUG] Language: {req.language}")
     
     # Get the reference audio path
     ref_path = get_reference_path(req.voice)
@@ -356,20 +372,33 @@ def api_tts_endpoint(req: TTSRequest):
         cleaned_text = clean_text(req.text)
         print(f"[DEBUG] Cleaned text: {cleaned_text}")
 
-        # Generate audio with Chatterbox Turbo
-        wav = tts.generate(
-            cleaned_text,
-            audio_prompt_path=str(ref_path),
+        # Generate audio with Qwen3-TTS
+        language = req.language.strip() or "Auto"
+        if language != "Auto" and SUPPORTED_LANGUAGES:
+            supported_lower = {lang.lower(): lang for lang in SUPPORTED_LANGUAGES}
+            normalized = supported_lower.get(language.lower())
+            if not normalized:
+                raise ValueError(
+                    f"Unsupported language '{language}'. Supported: {sorted(SUPPORTED_LANGUAGES)}"
+                )
+            language = normalized
+        # Use x_vector_only_mode to avoid requiring reference transcripts.
+        wavs, sample_rate = tts.generate_voice_clone(
+            text=cleaned_text,
+            language=language,
+            ref_audio=str(ref_path),
+            x_vector_only_mode=True,
             temperature=req.temperature,
-            min_p=req.min_p,
             top_p=req.top_p,
             top_k=req.top_k,
-            repetition_penalty=req.repetition_penalty,
-            norm_loudness=req.norm_loudness
+            repetition_penalty=req.repetition_penalty
         )
 
+        if not wavs:
+            raise RuntimeError("No audio returned from Qwen3-TTS (check input text, reference audio, and model status)")
+
         # Save the generated audio
-        ta.save(str(out_path), wav, tts.sr)
+        sf.write(str(out_path), wavs[0], sample_rate)
 
         print("[DEBUG] Inference complete")
 
@@ -383,6 +412,9 @@ def api_tts_endpoint(req: TTSRequest):
             headers={"Content-Disposition": "attachment; filename=out.wav"},
         )
 
+    except ValueError as e:
+        print(f"[ERROR] TTS request validation failed: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         print(f"[ERROR] TTS generation failed: {e}")
         import traceback
@@ -392,7 +424,7 @@ def api_tts_endpoint(req: TTSRequest):
     finally:
         # Cleanup
         out_path.unlink(missing_ok=True)
-        if device == "cuda":
+        if str(device).startswith("cuda"):
             torch.cuda.empty_cache()
         gc.collect()
         print("[DEBUG] Cleanup complete")
@@ -421,7 +453,8 @@ def health():
         "status": "ok",
         "device": device,
         "cuda": torch.cuda.is_available(),
-        "model": "chatterbox-turbo",
+        "model": "qwen3-tts",
+        "model_id": model_id,
         "references_directory": str(REF_DIR),
         "available_voices": len(available_voices),
         "voice_samples": available_voices,
@@ -436,15 +469,13 @@ def health():
 def model_info():
     """Get model information"""
     return {
-        "model": "Chatterbox Turbo",
+        "model": "Qwen3-TTS",
         "version": "1.0",
         "device": device,
         "features": [
             "Zero-shot voice cloning",
-            "Paralinguistic tags support ([laugh], [chuckle], etc.)",
+            "Language selection",
             "Temperature control",
-            "Single-step generation",
-            "Built-in watermarking",
             "MP3/WAV/OGG/FLAC support",
             "Audio duration validation"
         ],
@@ -459,12 +490,24 @@ def model_info():
         },
         "parameters": {
             "temperature": "0.05-5.0 (default: 1.7)",
-            "min_p": "0.0-1.0 (default: 0.1)",
             "top_p": "0.0-1.0 (default: 0.9)",
             "top_k": "1-100 (default: 50)",
             "repetition_penalty": "0.5-2.0 (default: 1.0)",
-            "norm_loudness": "bool (default: True)"
+            "language": "Auto or supported language"
         },
+        "supported_languages": SUPPORTED_LANGUAGES or [
+            "Auto",
+            "Chinese",
+            "English",
+            "Japanese",
+            "Korean",
+            "German",
+            "French",
+            "Russian",
+            "Portuguese",
+            "Spanish",
+            "Italian"
+        ],
         "reference_requirements": {
             "format": "WAV, MP3, OGG, or FLAC",
             "minimum_duration": "5.0 seconds",
@@ -552,9 +595,10 @@ def list_voices():
 
 if __name__ == "__main__":
     import uvicorn
-    print(f"[STARTUP] Starting Chatterbox Turbo server on port 5002")
+    print(f"[STARTUP] Starting Qwen3-TTS server on port 5002")
     print(f"[STARTUP] References directory: {REF_DIR}")
     print("[STARTUP] Override with: TTS_REFERENCES_DIR=/path/to/references")
+    print("[STARTUP] Override model with: QWEN_TTS_MODEL=Qwen/Qwen3-TTS-12Hz-1.7B-Base")
     print(f"[STARTUP] Available endpoints:")
     print(f"         POST /api/tts - TTS with voice parameter (client compatible)")
     print(f"         POST /tts - TTS with full parameter control")

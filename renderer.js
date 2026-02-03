@@ -12,6 +12,7 @@ const discordSetupBtn = document.getElementById('discordSetupBtn');
 const discordTeardownBtn = document.getElementById('discordTeardownBtn');
 const discordOsModeSelect = document.getElementById('discordOsMode');
 const discordWindowsCableInput = document.getElementById('discordWindowsCable');
+const languageSelect = document.getElementById('languageSelect');
 
 // State
 let voiceSamples = [];
@@ -134,6 +135,11 @@ function loadSettings() {
     discordWindowsCableInput.value = savedDiscordWindowsCable;
   }
 
+  const savedLanguage = localStorage.getItem('selectedLanguage');
+  if (savedLanguage && languageSelect) {
+    languageSelect.value = savedLanguage;
+  }
+
   const serverAddress = serverAddressInput.value.trim();
   if (serverAddress) {
     // Fast path: show cached voices instantly, then refresh from server.
@@ -171,6 +177,10 @@ function saveSettings() {
 
   if (discordWindowsCableInput.value) {
     localStorage.setItem('discordWindowsCable', discordWindowsCableInput.value.trim());
+  }
+
+  if (languageSelect && languageSelect.value) {
+    localStorage.setItem('selectedLanguage', languageSelect.value);
   }
 }
 
@@ -231,6 +241,9 @@ function setupEventListeners() {
   discordSinkNameInput.addEventListener('change', saveSettings);
   discordOsModeSelect.addEventListener('change', saveSettings);
   discordWindowsCableInput.addEventListener('change', saveSettings);
+  if (languageSelect) {
+    languageSelect.addEventListener('change', saveSettings);
+  }
 }
 
 async function handleDiscordSetup() {
@@ -333,6 +346,7 @@ async function handleGenerateSpeech() {
   // Validate inputs
   const text = textInput.value.trim();
   const voice = voiceSelect.value;
+  const language = (languageSelect ? languageSelect.value : 'Auto') || 'Auto';
   const serverAddress = serverAddressInput.value.trim();
   
   if (!text) {
@@ -362,6 +376,7 @@ async function handleGenerateSpeech() {
     const result = await window.electronAPI.sendTTSRequest({
       text: text,
       voice: voice,
+      language: language,
       serverAddress: serverAddress,
       discord: {
         autoPlay: !!discordAutoPlayCheckbox.checked,

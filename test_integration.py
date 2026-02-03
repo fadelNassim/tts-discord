@@ -87,7 +87,7 @@ def check_server_files():
     files = [
         ("server_chatterbox_turbo_enhanced.py", "Main server file"),
         ("requirements.txt", "Python dependencies"),
-        ("setup_chatterbox_auth.sh", "Setup script"),
+        ("setup.sh", "Setup script"),
         ("test_server_structure.py", "Structure validation"),
         ("demo_server.py", "Demo/test script"),
     ]
@@ -270,7 +270,7 @@ def generate_report():
         print("\nNext steps:")
         print("1. Install Python dependencies: pip install -r requirements.txt")
         print("2. Install Node.js dependencies: npm install")
-        print("3. Setup authentication: ./setup_chatterbox_auth.sh <token>")
+        print("3. Setup authentication: ./setup.sh <token>")
         print("4. Add voice samples to references/ directory")
         print("5. Test server: python3 demo_server.py")
         print("6. Run client: npm start")

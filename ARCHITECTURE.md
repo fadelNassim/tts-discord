@@ -15,8 +15,8 @@
         │                            │                            │
         ▼                            ▼                            │
 ┌──────────────────┐         ┌──────────────────┐               │
-│  User Interface  │         │  Chatterbox      │               │
-│  - Text Input    │         │  Turbo Model     │               │
+│  User Interface  │         │  Qwen3-TTS       │               │
+│  - Text Input    │         │  Model           │               │
 │  - Voice Select  │         │  - Voice Clone   │               │
 │  - GenerateBtn  │         │  - TTS Generate  │               │
 └──────────────────┘         └──────────────────┘               │
@@ -40,7 +40,7 @@ User Input
     │
     ├─ Text: "Hello world"
     ├─ Voice: "my_voice.wav"
-    └─ Parameters: temperature, min_p, etc.
+    └─ Parameters: temperature, top_p, etc.
     │
     ▼
 Electron Client (renderer.js)
@@ -63,10 +63,10 @@ FastAPI Server (server_chatterbox_turbo_enhanced.py)
     ├─ Get reference path: references/my_voice.wav
     ├─ Check audio duration (>5s)
     ├─ Convert if needed (MP3→WAV)
-    └─ Call Chatterbox Turbo
+    └─ Call Qwen3-TTS
     │
     ▼
-Chatterbox Turbo TTS
+Qwen3-TTS
     │
     ├─ Load voice reference
     ├─ Generate speech from text
@@ -118,13 +118,13 @@ User
 **Files:**
 - `server_chatterbox_turbo_enhanced.py` - Main server application
 - `requirements.txt` - Python dependencies
-- `setup_chatterbox_auth.sh` - Initial authentication
+- `setup.sh` - Initial authentication
 
 **Responsibilities:**
 - HTTP API endpoints
 - Voice file validation
 - Format conversion (MP3/OGG/FLAC → WAV)
-- TTS generation via Chatterbox Turbo
+- TTS generation via Qwen3-TTS
 - Audio post-processing
 - Model management
 - Error handling
@@ -175,11 +175,10 @@ Content-Type: application/json
   "text": "Text to convert to speech",
   "voice": "my_voice.wav",
   "temperature": 1.7,       // Optional
-  "min_p": 0.1,             // Optional
   "top_p": 0.9,             // Optional
   "top_k": 50,              // Optional
   "repetition_penalty": 1.0,// Optional
-  "norm_loudness": true     // Optional
+  "language": "English"     // Optional
 }
 ```
 

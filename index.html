@@ -43,6 +43,27 @@
               </div>
               <p class="hint">Enter = Generate · Shift+Enter = New line</p>
             </div>
+
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label for="languageSelect">
+                <span class="label-icon">🌍</span>
+                Language
+              </label>
+              <select id="languageSelect">
+                <option value="Auto">Auto</option>
+                <option value="Chinese">Chinese</option>
+                <option value="English">English</option>
+                <option value="Japanese">Japanese</option>
+                <option value="Korean">Korean</option>
+                <option value="German">German</option>
+                <option value="French">French</option>
+                <option value="Russian">Russian</option>
+                <option value="Portuguese">Portuguese</option>
+                <option value="Spanish">Spanish</option>
+                <option value="Italian">Italian</option>
+              </select>
+              <p class="hint">Choose a language or keep Auto for detection.</p>
+            </div>
           </div>
 
           <div class="quickbar-right">
@@ -120,7 +141,7 @@
         <summary><b>📋 Help</b> (click to expand)</summary>
         <h3>📋 Instructions</h3>
         <ol>
-          <li>Set your Chatterbox TTS server address (default: http://localhost:5002)</li>
+          <li>Set your Qwen3-TTS server address (default: http://localhost:5002)</li>
           <li>Click Refresh to load voice samples from the server</li>
           <li>Choose a voice sample from the dropdown (server <code>references/</code>)</li>
           <li>Type the text you want to convert to speech</li>

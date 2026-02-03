@@ -51,11 +51,44 @@ def test_server_structure():
             print(f"❌ Missing endpoint: {endpoint}")
             return False
     
+    # Check for language support details
+    if '"supported_languages"' in content:
+        print("✅ Supported languages listed in model info")
+    else:
+        print("❌ Supported languages missing in model info")
+        return False
+
+    if 'language: str = Field(default="Auto")' in content:
+        print("✅ Language field default found")
+    else:
+        print("❌ Language field default missing")
+        return False
+
     # Check for references directory creation
     if 'REF_DIR.mkdir(exist_ok=True)' in content:
         print("✅ References directory creation found")
     else:
         print("❌ References directory creation missing")
+        return False
+
+    # Ensure model loading returns model_id for Qwen3-TTS
+    if 'tts, device, model_id = load_model_offline()' in content:
+        print("✅ Model loading returns model_id")
+    else:
+        print("❌ Model loading return tuple missing model_id")
+        return False
+
+    # Check for language handling pieces
+    if 'language = req.language.strip() or "Auto"' in content:
+        print("✅ Language fallback to Auto found")
+    else:
+        print("❌ Language fallback to Auto missing")
+        return False
+
+    if 'supported_lower = {lang.lower(): lang for lang in SUPPORTED_LANGUAGES}' in content:
+        print("✅ Language normalization found")
+    else:
+        print("❌ Language normalization missing")
         return False
     
     return True
@@ -79,7 +112,7 @@ def test_requirements():
         "soundfile",
         "numpy",
         "pydantic",
-        "chatterbox-tts",
+        "qwen-tts",
     ]
     
     for pkg in required_packages:
@@ -93,20 +126,20 @@ def test_requirements():
 
 def test_setup_script():
     """Test that setup script exists and is executable"""
-    setup_file = Path(__file__).parent / "setup_chatterbox_auth.sh"
+    setup_file = Path(__file__).parent / "setup.sh"
     
     if not setup_file.exists():
-        print("❌ setup_chatterbox_auth.sh not found")
+        print("❌ setup.sh not found")
         return False
     
-    print("✅ setup_chatterbox_auth.sh exists")
+    print("✅ setup.sh exists")
     
     # Check if executable
     import os
     if os.access(setup_file, os.X_OK):
         print("✅ Setup script is executable")
     else:
-        print("⚠️  Setup script is not executable (run: chmod +x setup_chatterbox_auth.sh)")
+        print("⚠️  Setup script is not executable (run: chmod +x setup.sh)")
     
     return True
 
@@ -146,7 +179,7 @@ def main():
         print()
         print("Next steps:")
         print("1. Install dependencies: pip install -r requirements.txt")
-        print("2. Setup authentication: ./setup_chatterbox_auth.sh <your-hf-token>")
+        print("2. Setup authentication: ./setup.sh <your-hf-token>")
         print("3. Add voice samples to references/ directory")
         print("4. Run server: python3 server_chatterbox_turbo_enhanced.py")
         return 0

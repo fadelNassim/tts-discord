@@ -1,6 +1,6 @@
-# Chatterbox TTS Server Setup
+# Qwen3-TTS Server Setup
 
-This is a FastAPI-based TTS server using Chatterbox Turbo that integrates with the TTS Discord client.
+This is a FastAPI-based TTS server using Qwen3-TTS that integrates with the TTS Discord client.
 
 ## Features
 
@@ -14,7 +14,7 @@ This is a FastAPI-based TTS server using Chatterbox Turbo that integrates with t
 ## Prerequisites
 
 1. **Python 3.8+**
-2. **Hugging Face account** with access to Chatterbox TTS
+2. **Hugging Face account** with access to Qwen3-TTS
 3. **CUDA-capable GPU** (recommended) or CPU
 
 ## Installation
@@ -26,7 +26,7 @@ This is a FastAPI-based TTS server using Chatterbox Turbo that integrates with t
 
 2. **Setup Hugging Face authentication:**
    ```bash
-   ./setup_chatterbox_auth.sh <your-huggingface-token>
+   ./setup.sh <your-huggingface-token>
    ```
    
    Get your token from: https://huggingface.co/settings/tokens
@@ -63,7 +63,8 @@ Content-Type: application/json
 
 {
   "text": "Hello, this is a test",
-  "voice": "my_voice.wav"
+   "voice": "my_voice.wav",
+   "language": "Auto"
 }
 ```
 
@@ -78,11 +79,10 @@ Content-Type: application/json
   "text": "Hello with custom parameters",
   "voice": "my_voice.wav",
   "temperature": 1.7,
-  "min_p": 0.1,
-  "top_p": 0.9,
-  "top_k": 50,
-  "repetition_penalty": 1.0,
-  "norm_loudness": true
+   "top_p": 0.9,
+   "top_k": 50,
+   "repetition_penalty": 1.0,
+   "language": "English"
 }
 ```
 
@@ -123,24 +123,23 @@ The server is designed to work seamlessly with the TTS Discord client:
 1. Start the server on the default port (5002)
 2. In the TTS Discord client, set the server address to `http://localhost:5002`
 3. Place your voice samples in the `references/` directory
-4. The client will automatically use the `/api/tts` endpoint
+4. The client will automatically use the `/api/tts` endpoint and language selection
 
 ## Parameters
 
 | Parameter | Type | Range | Default | Description |
 |-----------|------|-------|---------|-------------|
 | temperature | float | 0.05-5.0 | 1.7 | Controls randomness in generation |
-| min_p | float | 0.0-1.0 | 0.1 | Minimum probability threshold |
 | top_p | float | 0.0-1.0 | 0.9 | Nucleus sampling threshold |
 | top_k | int | 1-100 | 50 | Top-k sampling parameter |
 | repetition_penalty | float | 0.5-2.0 | 1.0 | Penalty for repetition |
-| norm_loudness | bool | - | true | Normalize output loudness |
+| language | string | - | Auto | Language selection |
 
 ## Troubleshooting
 
 ### Server won't start
 - Check that all dependencies are installed: `pip install -r requirements.txt`
-- Verify Hugging Face authentication: `./setup_chatterbox_auth.sh <token>`
+- Verify Hugging Face authentication: `./setup.sh <token>`
 - Ensure port 5002 is not in use
 
 ### Voice file not found
@@ -182,7 +181,7 @@ curl http://localhost:5002/health
 # Test TTS generation
 curl -X POST http://localhost:5002/api/tts \
   -H "Content-Type: application/json" \
-  -d '{"text": "Hello world", "voice": "my_voice.wav"}' \
+  -d '{"text": "Hello world", "voice": "my_voice.wav", "language": "Auto"}' \
   --output test.wav
 ```
 
