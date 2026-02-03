@@ -5,6 +5,9 @@ dist/
 audio_output/
 .env
 
+# Demo outputs
+demo_output/
+
 # Python
 __pycache__/
 *.py[cod]
