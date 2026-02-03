@@ -276,7 +276,7 @@ class TTSRequest(BaseModel):
 # =======================
 
 def clean_text(text: str) -> str:
-    """Clean and prepare text for TTS"""
+    """Clean and prepare text for TTS (preserve non-Latin scripts)."""
     text = text.strip()
     text = re.sub(r"[\x00-\x1f\x7f]", "", text)
     return text[:600]
@@ -369,7 +369,7 @@ def api_tts_endpoint(req: TTSRequest):
         print(f"[DEBUG] Cleaned text: {cleaned_text}")
 
         # Generate audio with Qwen3-TTS
-        language = (req.language or "Auto").strip() or "Auto"
+        language = req.language.strip() or "Auto"
         if language != "Auto" and SUPPORTED_LANGUAGES:
             supported_lower = {lang.lower() for lang in SUPPORTED_LANGUAGES}
             if language.lower() not in supported_lower:
@@ -472,7 +472,7 @@ def model_info():
             "MP3/WAV/OGG/FLAC support",
             "Audio duration validation"
         ],
-        "sample_rate": 24000,
+        "sample_rate": getattr(tts, 'sr', 24000),
         "endpoints": {
             "/api/tts": "TTS endpoint for client compatibility (text, voice)",
             "/tts": "TTS endpoint with full parameter control (same as /api/tts)",

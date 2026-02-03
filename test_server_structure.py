@@ -70,6 +70,13 @@ def test_server_structure():
     else:
         print("❌ References directory creation missing")
         return False
+
+    # Ensure model loading returns model_id for Qwen3-TTS
+    if 'tts, device, model_id = load_model_offline()' in content:
+        print("✅ Model loading returns model_id")
+    else:
+        print("❌ Model loading return tuple missing model_id")
+        return False
     
     return True
 
