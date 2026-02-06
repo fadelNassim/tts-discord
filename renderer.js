@@ -13,6 +13,8 @@ const discordTeardownBtn = document.getElementById('discordTeardownBtn');
 const discordOsModeSelect = document.getElementById('discordOsMode');
 const discordWindowsCableInput = document.getElementById('discordWindowsCable');
 const languageSelect = document.getElementById('languageSelect');
+const emotionSelect = document.getElementById('emotionSelect');
+const voiceDescriptionInput = document.getElementById('voiceDescription');
 const referenceUploadInput = document.getElementById('referenceUploadInput');
 const uploadReferenceBtn = document.getElementById('uploadReferenceBtn');
 const referenceUploadNameInput = document.getElementById('referenceUploadName');
@@ -144,6 +146,16 @@ function loadSettings() {
     languageSelect.value = savedLanguage;
   }
 
+  const savedEmotion = localStorage.getItem('selectedEmotion');
+  if (savedEmotion && emotionSelect) {
+    emotionSelect.value = savedEmotion;
+  }
+
+  const savedVoiceDescription = localStorage.getItem('voiceDescription');
+  if (savedVoiceDescription !== null && voiceDescriptionInput) {
+    voiceDescriptionInput.value = savedVoiceDescription;
+  }
+
   const serverAddress = serverAddressInput.value.trim();
   if (serverAddress) {
     // Fast path: show cached voices instantly, then refresh from server.
@@ -185,6 +197,14 @@ function saveSettings() {
 
   if (languageSelect && languageSelect.value) {
     localStorage.setItem('selectedLanguage', languageSelect.value);
+  }
+
+  if (emotionSelect && emotionSelect.value) {
+    localStorage.setItem('selectedEmotion', emotionSelect.value);
+  }
+
+  if (voiceDescriptionInput) {
+    localStorage.setItem('voiceDescription', String(voiceDescriptionInput.value || ''));
   }
 }
 
@@ -250,6 +270,12 @@ function setupEventListeners() {
   discordWindowsCableInput.addEventListener('change', saveSettings);
   if (languageSelect) {
     languageSelect.addEventListener('change', saveSettings);
+  }
+  if (emotionSelect) {
+    emotionSelect.addEventListener('change', saveSettings);
+  }
+  if (voiceDescriptionInput) {
+    voiceDescriptionInput.addEventListener('change', saveSettings);
   }
 }
 
@@ -421,6 +447,8 @@ async function handleGenerateSpeech() {
   const text = textInput.value.trim();
   const voice = voiceSelect.value;
   const language = (languageSelect ? languageSelect.value : 'Auto') || 'Auto';
+  const emotion = (emotionSelect ? emotionSelect.value : 'Neutral') || 'Neutral';
+  const voiceDescription = (voiceDescriptionInput ? voiceDescriptionInput.value : '') || '';
   const serverAddress = serverAddressInput.value.trim();
   
   if (!text) {
@@ -451,6 +479,8 @@ async function handleGenerateSpeech() {
       text: text,
       voice: voice,
       language: language,
+      emotion: String(emotion || 'Neutral').trim() || 'Neutral',
+      voiceDescription: String(voiceDescription || '').trim(),
       serverAddress: serverAddress,
       discord: {
         autoPlay: !!discordAutoPlayCheckbox.checked,

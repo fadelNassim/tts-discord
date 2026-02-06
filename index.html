@@ -90,6 +90,37 @@
               </select>
               <p class="hint">Choose a language or keep Auto for detection.</p>
             </div>
+
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label for="emotionSelect">
+                <span class="label-icon">🎭</span>
+                Emotion / Style
+              </label>
+              <select id="emotionSelect">
+                <option value="Neutral">Neutral</option>
+                <option value="Happy">Happy</option>
+                <option value="Sad">Sad</option>
+                <option value="Angry">Angry</option>
+                <option value="Excited">Excited</option>
+                <option value="Calm">Calm</option>
+                <option value="Whisper">Whisper</option>
+                <option value="Narration">Narration</option>
+              </select>
+              <p class="hint">Preset emotion used when no custom style prompt is provided.</p>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label for="voiceDescription">
+                <span class="label-icon">📝</span>
+                Style prompt (optional)
+              </label>
+              <input
+                type="text"
+                id="voiceDescription"
+                placeholder="e.g., upbeat tone, happy emotion, slightly faster pace"
+              >
+              <p class="hint">If set, this overrides the preset emotion.</p>
+            </div>
           </div>
 
           <div class="quickbar-right">

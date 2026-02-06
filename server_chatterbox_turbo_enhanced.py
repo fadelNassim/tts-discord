@@ -295,6 +295,8 @@ class TTSRequest(BaseModel):
     text: str
     voice: str
     language: str = Field(default="Auto")
+    emotion: str = Field(default="Neutral")
+    voice_description: str | None = Field(default=None)
     # Qwen3-TTS parameters
     temperature: float = Field(1.7, ge=0.05, le=5.0)  # Matches prior behavior for stability.
     top_p: float = Field(0.9, ge=0.0, le=1.0)
@@ -310,6 +312,25 @@ def clean_text(text: str) -> str:
     text = text.strip()
     text = re.sub(r"[\x00-\x1f\x7f]", "", text)
     return text[:600]
+
+
+_EMOTION_PRESETS: dict[str, str] = {
+    "neutral": "neutral tone, clear articulation, natural pace",
+    "happy": "upbeat tone, happy emotion, slightly faster pace",
+    "sad": "sad emotion, softer tone, slightly slower pace",
+    "angry": "angry emotion, firmer tone, faster pace, strong emphasis",
+    "excited": "excited emotion, energetic tone, faster pace, lively prosody",
+    "calm": "calm emotion, warm tone, steady pace, relaxed delivery",
+    "whisper": "whispered, very soft tone, close-mic feel, slow pace",
+    "narration": "narration style, neutral emotion, clear and steady pace",
+}
+
+
+def clean_voice_description(text: str) -> str:
+    """Sanitize a short style prompt for the model (control chars removed, bounded length)."""
+    text = (text or "").strip()
+    text = re.sub(r"[\x00-\x1f\x7f]", "", text)
+    return text[:200]
 
 # =======================
 # DEBUG HELPERS
@@ -386,6 +407,8 @@ def api_tts_endpoint(req: TTSRequest):
     print(f"[DEBUG] Text: {req.text}")
     print(f"[DEBUG] Voice: {req.voice}")
     print(f"[DEBUG] Language: {req.language}")
+    print(f"[DEBUG] Emotion: {req.emotion}")
+    print(f"[DEBUG] Voice description (custom): {bool(req.voice_description and req.voice_description.strip())}")
     
     # Get the reference audio path
     ref_path = get_reference_path(req.voice)
@@ -408,12 +431,18 @@ def api_tts_endpoint(req: TTSRequest):
                     f"Unsupported language '{language}'. Supported: {sorted(SUPPORTED_LANGUAGES)}"
                 )
             language = normalized
+
+        style = clean_voice_description(req.voice_description or "")
+        if not style:
+            key = (req.emotion or "Neutral").strip().lower()
+            style = _EMOTION_PRESETS.get(key, _EMOTION_PRESETS["neutral"])
+
         # Use x_vector_only_mode to avoid requiring reference transcripts.
         wavs, sample_rate = tts.generate_voice_clone(
             text=cleaned_text,
             language=language,
             ref_audio=str(ref_path),
-            voice_description="upbeat tone, happy emotion, slightly faster pace"
+            voice_description=style,
             x_vector_only_mode=True,
             temperature=req.temperature,
             top_p=req.top_p,

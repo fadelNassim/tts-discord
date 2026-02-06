@@ -535,7 +535,7 @@ ipcMain.handle('discord-audio-teardown', async () => {
 });
 
 ipcMain.handle('send-tts-request', async (event, data) => {
-  const { text, voice, language, serverAddress, discord } = data;
+  const { text, voice, language, serverAddress, discord, emotion, voiceDescription } = data;
   
   try {
     const endpointUrl = buildApiUrl(serverAddress, '/api/tts');
@@ -545,6 +545,12 @@ ipcMain.handle('send-tts-request', async (event, data) => {
     };
     if (language) {
       payload.language = language;
+    }
+    if (emotion) {
+      payload.emotion = String(emotion);
+    }
+    if (voiceDescription) {
+      payload.voice_description = String(voiceDescription);
     }
     const response = await axios.post(endpointUrl, payload, {
       responseType: 'arraybuffer',
