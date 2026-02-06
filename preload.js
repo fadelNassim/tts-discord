@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   sendTTSRequest: (data) => ipcRenderer.invoke('send-tts-request', data),
   getServerVoices: (serverAddress) => ipcRenderer.invoke('get-server-voices', serverAddress),
+  uploadReferenceAudio: (data) => ipcRenderer.invoke('upload-reference-audio', data),
   discordAudioSetup: (options) => ipcRenderer.invoke('discord-audio-setup', options),
   discordAudioTeardown: () => ipcRenderer.invoke('discord-audio-teardown'),
   getPlatform: () => ipcRenderer.invoke('get-platform'),

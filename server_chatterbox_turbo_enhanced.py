@@ -8,6 +8,8 @@ Designed to work with TTS Discord client
 import gc
 import re
 import os
+import time
+import uuid
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -15,7 +17,7 @@ import numpy as np
 import soundfile as sf
 import torch
 import torchaudio as ta
-from fastapi import FastAPI, Response, HTTPException
+from fastapi import FastAPI, Response, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field
 
 # Try to import Qwen3TTSModel
@@ -192,7 +194,7 @@ def _get_references_dir() -> Path:
 REF_DIR = _get_references_dir()
 
 # Create references directory if it doesn't exist
-REF_DIR.mkdir(exist_ok=True)
+REF_DIR.mkdir(parents=True, exist_ok=True)
 
 # Cache for validated reference files
 validated_references = {}
@@ -257,6 +259,30 @@ def get_reference_path(voice_filename: str) -> Path:
     }
     
     return voice_path
+
+
+def _sanitize_reference_filename(raw_name: str) -> str:
+    """Sanitize a user-provided filename for storage in the references directory."""
+    name = Path(str(raw_name or "")).name
+    name = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("._")
+    return name
+
+
+def _choose_reference_target_name(upload_filename: str, desired_name: str | None) -> str:
+    original = Path(str(upload_filename or "")).name
+    original_ext = Path(original).suffix.lower()
+
+    raw_target = desired_name if desired_name else original
+    target = _sanitize_reference_filename(raw_target)
+
+    if not target:
+        target = f"reference_{int(time.time())}{original_ext or '.wav'}"
+
+    # If the user gave a name without an extension, preserve the uploaded extension.
+    if Path(target).suffix == "" and original_ext:
+        target = f"{target}{original_ext}"
+
+    return target
 
 # =======================
 # FASTAPI
@@ -387,6 +413,7 @@ def api_tts_endpoint(req: TTSRequest):
             text=cleaned_text,
             language=language,
             ref_audio=str(ref_path),
+            voice_description="upbeat tone, happy emotion, slightly faster pace"
             x_vector_only_mode=True,
             temperature=req.temperature,
             top_p=req.top_p,
@@ -483,6 +510,7 @@ def model_info():
         "endpoints": {
             "/api/tts": "TTS endpoint for client compatibility (text, voice)",
             "/tts": "TTS endpoint with full parameter control (same as /api/tts)",
+            "/upload-reference": "Upload a new reference audio file (multipart/form-data)",
             "/health": "Health check",
             "/info": "Model information",
             "/validate-references": "Validate reference audio files",
@@ -514,6 +542,75 @@ def model_info():
             "directory": str(REF_DIR)
         }
     }
+
+
+@app.post("/upload-reference")
+async def upload_reference_audio(
+    file: UploadFile = File(...),
+    name: str | None = Form(default=None),
+    overwrite: bool = Form(default=False),
+):
+    """Upload a new reference audio file into the server references directory."""
+
+    REF_DIR.mkdir(parents=True, exist_ok=True)
+
+    target_name = _choose_reference_target_name(file.filename, name)
+    ext = Path(target_name).suffix.lower()
+    supported = ['.wav', '.mp3', '.ogg', '.flac']
+    if ext not in supported:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported audio format: {ext or '(none)'}. Supported: {supported}",
+        )
+
+    target_path = (REF_DIR / target_name).resolve()
+    if REF_DIR.resolve() not in target_path.parents:
+        raise HTTPException(status_code=400, detail="Invalid target filename")
+
+    if target_path.exists() and not overwrite:
+        raise HTTPException(
+            status_code=409,
+            detail=f"File already exists: {target_path.name}. Set overwrite=true to replace it.",
+        )
+
+    tmp_name = f".upload_{uuid.uuid4().hex}{ext}"
+    tmp_path = (REF_DIR / tmp_name).resolve()
+
+    try:
+        # Stream upload to disk.
+        with open(tmp_path, "wb") as out:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                out.write(chunk)
+
+        # Ensure any derived wav is rebuilt for non-wav inputs.
+        derived_wav = target_path.with_suffix('.wav')
+        if derived_wav.exists() and derived_wav != target_path:
+            derived_wav.unlink(missing_ok=True)
+
+        # Move into place (atomic replace when possible).
+        os.replace(str(tmp_path), str(target_path))
+
+        # Validate after saving.
+        is_valid, error_msg, duration = validate_reference_audio(target_path)
+        if not is_valid:
+            target_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=400, detail=error_msg)
+
+        # Invalidate cache so list/tts sees it immediately.
+        validated_references.clear()
+
+        return {
+            "success": True,
+            "filename": target_path.name,
+            "directory": str(REF_DIR),
+            "duration": duration,
+            "format": ext.lstrip('.'),
+        }
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
 # =======================
 # AUDIO VALIDATION ENDPOINT
@@ -602,6 +699,7 @@ if __name__ == "__main__":
     print(f"[STARTUP] Available endpoints:")
     print(f"         POST /api/tts - TTS with voice parameter (client compatible)")
     print(f"         POST /tts - TTS with full parameter control")
+    print(f"         POST /upload-reference - Upload a new reference audio file")
     print(f"         GET  /health - Health check")
     print(f"         GET  /info - Model information")
     print(f"         GET  /validate-references - Check reference audio files")

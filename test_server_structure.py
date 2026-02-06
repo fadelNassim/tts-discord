@@ -38,6 +38,7 @@ def test_server_structure():
     required_endpoints = [
         '@app.post("/api/tts")',
         '@app.post("/tts")',
+        '@app.post("/upload-reference")',
         '@app.get("/health")',
         '@app.get("/info")',
         '@app.get("/validate-references")',

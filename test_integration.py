@@ -170,6 +170,7 @@ def check_server_endpoints():
     endpoints = [
         ('@app.post("/api/tts")', "Legacy TTS endpoint"),
         ('@app.post("/tts")', "Enhanced TTS endpoint"),
+        ('@app.post("/upload-reference")', "Upload reference audio"),
         ('@app.get("/health")', "Health check"),
         ('@app.get("/info")', "Model info"),
         ('@app.get("/list-voices")', "List voices"),

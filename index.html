@@ -45,6 +45,32 @@
             </div>
 
             <div class="form-group" style="margin-bottom: 12px;">
+              <label for="referenceUploadInput">
+                <span class="label-icon">📤</span>
+                Upload reference audio
+              </label>
+              <div class="input-with-button">
+                <input
+                  type="file"
+                  id="referenceUploadInput"
+                  accept=".wav,.mp3,.ogg,.flac,audio/*"
+                >
+                <button id="uploadReferenceBtn" class="btn-secondary" title="Upload selected audio file to the server references folder">Upload</button>
+              </div>
+              <input
+                type="text"
+                id="referenceUploadName"
+                placeholder="Optional saved name (e.g. my_voice.wav)"
+                style="margin-top: 8px;"
+              >
+              <div class="checkbox-row checkbox-compact" style="margin-top: 6px;">
+                <input type="checkbox" id="overwriteReference">
+                <label for="overwriteReference" class="inline-label">Overwrite if already exists</label>
+              </div>
+              <p class="hint">Uploaded files are stored in the server <code>references/</code> folder and must be 5s+ long.</p>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 12px;">
               <label for="languageSelect">
                 <span class="label-icon">🌍</span>
                 Language

@@ -13,6 +13,10 @@ const discordTeardownBtn = document.getElementById('discordTeardownBtn');
 const discordOsModeSelect = document.getElementById('discordOsMode');
 const discordWindowsCableInput = document.getElementById('discordWindowsCable');
 const languageSelect = document.getElementById('languageSelect');
+const referenceUploadInput = document.getElementById('referenceUploadInput');
+const uploadReferenceBtn = document.getElementById('uploadReferenceBtn');
+const referenceUploadNameInput = document.getElementById('referenceUploadName');
+const overwriteReferenceCheckbox = document.getElementById('overwriteReference');
 
 // State
 let voiceSamples = [];
@@ -190,6 +194,9 @@ function setupEventListeners() {
   generateBtn.addEventListener('click', handleGenerateSpeech);
   discordSetupBtn.addEventListener('click', handleDiscordSetup);
   discordTeardownBtn.addEventListener('click', handleDiscordTeardown);
+  if (uploadReferenceBtn) {
+    uploadReferenceBtn.addEventListener('click', handleUploadReference);
+  }
 
   // Enter to generate, Shift+Enter for newline (textarea).
   textInput.addEventListener('keydown', (e) => {
@@ -243,6 +250,73 @@ function setupEventListeners() {
   discordWindowsCableInput.addEventListener('change', saveSettings);
   if (languageSelect) {
     languageSelect.addEventListener('change', saveSettings);
+  }
+}
+
+async function handleUploadReference() {
+  const serverAddress = serverAddressInput.value.trim();
+  if (!serverAddress) {
+    showStatus('Please enter a server address first', 'error');
+    return;
+  }
+
+  const file = referenceUploadInput?.files?.[0];
+  if (!file) {
+    showStatus('Please choose an audio file to upload', 'error');
+    return;
+  }
+
+  const desiredName = (referenceUploadNameInput?.value || '').trim();
+  const overwrite = !!overwriteReferenceCheckbox?.checked;
+
+  uploadReferenceBtn.disabled = true;
+  const oldLabel = uploadReferenceBtn.textContent;
+  uploadReferenceBtn.textContent = '⏳ Uploading...';
+
+  try {
+    showStatus('Uploading reference audio to server...', 'loading');
+    saveSettings();
+
+    const payload = {
+      serverAddress,
+      fileName: file.name,
+      name: desiredName,
+      overwrite
+    };
+
+    // Electron usually exposes file.path for <input type="file">.
+    if (file.path) {
+      payload.filePath = file.path;
+    } else if (typeof file.arrayBuffer === 'function') {
+      payload.bytes = await file.arrayBuffer();
+    } else {
+      throw new Error('Unable to read selected file');
+    }
+
+    const result = await window.electronAPI.uploadReferenceAudio(payload);
+    if (!result?.success) {
+      showStatus(`❌ Upload failed: ${result?.error || 'unknown error'}`, 'error');
+      return;
+    }
+
+    // Refresh the voice list so the new reference appears.
+    await loadServerVoices(serverAddress);
+
+    if (result.filename && voiceSamples && voiceSamples.includes(result.filename)) {
+      voiceSelect.value = result.filename;
+      localStorage.setItem('selectedVoice', result.filename);
+    }
+
+    const duration = typeof result.duration === 'number' ? ` (${result.duration.toFixed(1)}s)` : '';
+    showStatus(`✅ Uploaded reference: ${result.filename || 'unknown'}${duration}`, 'success');
+
+    // Reset the chooser for quick re-uploads.
+    if (referenceUploadInput) referenceUploadInput.value = '';
+  } catch (e) {
+    showStatus(`❌ Upload error: ${e.message}`, 'error');
+  } finally {
+    uploadReferenceBtn.disabled = false;
+    uploadReferenceBtn.textContent = oldLabel || 'Upload';
   }
 }
 

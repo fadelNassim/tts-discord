@@ -244,6 +244,32 @@ function formatAxiosError(error, endpointUrl) {
   return error?.message || `Request failed calling ${endpointUrl}`;
 }
 
+async function formatFetchError(response, endpointUrl) {
+  let raw = '';
+  try {
+    raw = await response.text();
+  } catch {
+    raw = '';
+  }
+
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && parsed.detail) {
+        return `HTTP ${response.status} ${response.statusText || ''} calling ${endpointUrl} - ${parsed.detail}`.trim();
+      }
+    } catch {
+      // ignore
+    }
+    const snippet = raw.replace(/\s+/g, ' ').trim().slice(0, 500);
+    if (snippet) {
+      return `HTTP ${response.status} ${response.statusText || ''} calling ${endpointUrl} - ${snippet}`.trim();
+    }
+  }
+
+  return `HTTP ${response.status} ${response.statusText || ''} calling ${endpointUrl}`.trim();
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 800,
@@ -320,6 +346,78 @@ ipcMain.handle('get-server-voices', async (event, serverAddress) => {
     const listUrl = buildApiUrl(serverAddress, '/list-voices');
     console.error('Fetching server voices failed:', error);
     throw new Error(formatAxiosError(error, listUrl));
+  }
+});
+
+ipcMain.handle('upload-reference-audio', async (_event, data) => {
+  const serverAddress = data?.serverAddress;
+  const filePath = data?.filePath;
+  const fileName = String(data?.fileName || '').trim();
+  const desiredName = String(data?.name || '').trim();
+  const overwrite = data?.overwrite === true;
+
+  try {
+    const endpointUrl = buildApiUrl(serverAddress, '/upload-reference');
+
+    if (typeof FormData === 'undefined' || typeof Blob === 'undefined' || typeof fetch === 'undefined') {
+      throw new Error('Missing required web APIs (fetch/FormData/Blob) in this Electron runtime');
+    }
+
+    let buffer = null;
+    let filenameForServer = fileName;
+
+    if (filePath && typeof filePath === 'string') {
+      const resolved = String(filePath);
+      if (!fs.existsSync(resolved)) {
+        throw new Error(`File not found: ${resolved}`);
+      }
+      buffer = await fs.promises.readFile(resolved);
+      if (!filenameForServer) {
+        filenameForServer = path.basename(resolved);
+      }
+    } else if (data?.bytes) {
+      // bytes can be Uint8Array, ArrayBuffer, or Buffer-like.
+      if (Buffer.isBuffer(data.bytes)) {
+        buffer = data.bytes;
+      } else if (data.bytes instanceof ArrayBuffer) {
+        buffer = Buffer.from(data.bytes);
+      } else if (ArrayBuffer.isView(data.bytes)) {
+        buffer = Buffer.from(data.bytes.buffer);
+      } else {
+        throw new Error('Unsupported bytes payload for upload');
+      }
+      if (!filenameForServer) {
+        filenameForServer = desiredName || 'reference.wav';
+      }
+    } else {
+      throw new Error('No filePath or bytes provided for upload');
+    }
+
+    const form = new FormData();
+    if (desiredName) {
+      form.append('name', desiredName);
+    }
+    form.append('overwrite', overwrite ? 'true' : 'false');
+    form.append('file', new Blob([buffer]), filenameForServer);
+
+    const resp = await fetch(endpointUrl, {
+      method: 'POST',
+      body: form,
+    });
+
+    if (!resp.ok) {
+      const msg = await formatFetchError(resp, endpointUrl);
+      return { success: false, error: msg };
+    }
+
+    const json = await resp.json();
+    return { success: true, ...json };
+  } catch (e) {
+    const endpointUrl = buildApiUrl(serverAddress, '/upload-reference');
+    return {
+      success: false,
+      error: e?.message || `Upload failed calling ${endpointUrl}`
+    };
   }
 });
 
